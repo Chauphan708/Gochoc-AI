@@ -1,0 +1,46 @@
++--------------------- Traceback (most recent call last) ---------------------+
+| C:\Users\PC\AppData\Roaming\Python\Python313\site-packages\notebooklm_tools |
+| \cli\commands\notebook.py:43 in list_notebooks                              |
+|                                                                             |
+|    40                                                                       |
+|    41         fmt = detect_output_format(json_output, quiet, title)         |
+|    42         formatter = get_formatter(fmt, console)                       |
+| >  43         formatter.format_notebooks(notebooks, full=full, title_only=t |
+|    44     except (ServiceError, NLMError) as e:                             |
+|    45         handle_error(e, json_output=locals().get("json_output", False |
+|    46                                                                       |
+|                                                                             |
+| C:\Users\PC\AppData\Roaming\Python\Python313\site-packages\notebooklm_tools |
+| \cli\formatters.py:323 in format_notebooks                                  |
+|                                                                             |
+|   320             if full and created:                                      |
+|   321                 item["created_at"] = created if isinstance(created, s |
+|   322             data.append(item)                                         |
+| > 323         print_json(data)                                              |
+|   324                                                                       |
+|   325     def format_sources(                                               |
+|   326         self,                                                         |
+|                                                                             |
+| C:\Users\PC\AppData\Roaming\Python\Python313\site-packages\notebooklm_tools |
+| \cli\formatters.py:22 in print_json                                         |
+|                                                                             |
+|    19                                                                       |
+|    20 def print_json(data: Any) -> None:                                    |
+|    21     """Print JSON output while preserving non-ASCII characters."""    |
+| >  22     print(json.dumps(data, indent=2, ensure_ascii=False))             |
+|    23                                                                       |
+|    24                                                                       |
+|    25 def detect_output_format(                                             |
+|                                                                             |
+| C:\Program Files\Python313\Lib\encodings\cp1252.py:19 in encode             |
+|                                                                             |
+|    16                                                                       |
+|    17 class IncrementalEncoder(codecs.IncrementalEncoder):                  |
+|    18     def encode(self, input, final=False):                             |
+| >  19         return codecs.charmap_encode(input,self.errors,encoding_table |
+|    20                                                                       |
+|    21 class IncrementalDecoder(codecs.IncrementalDecoder):                  |
+|    22     def decode(self, input, final=False):                             |
++-----------------------------------------------------------------------------+
+UnicodeEncodeError: 'charmap' codec can't encode character '\u1ea0' in position
+74: character maps to <undefined>
