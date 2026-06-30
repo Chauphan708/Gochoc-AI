@@ -9,7 +9,9 @@ import { Crown, PenLine, ChevronDown, Loader2, ArrowRight, Camera, CheckCircle2,
 import { AIChatWindow } from '@/components/Student/AIChatWindow'
 import { StudentProfileDrawer } from '@/components/Student/StudentProfileDrawer'
 import { getCurrentUser } from '@/services/authService'
-import { getSessionById, getStudentCurrentStation, getGroupMembers } from '@/services/sessionService'
+import { getSessionById, getStudentCurrentStation, getGroupMembers, updateGroupActiveStudent } from '@/services/sessionService'
+import { cacheData, getCachedData, queueOfflineAction } from '@/services/offlineService'
+import { supabase } from '@/lib/supabase'
 import { submitTask } from '@/services/taskResultService'
 import { subscribeToRotation, subscribeToSessionStatus, getTimeRemaining } from '@/services/rotationService'
 import { uploadTaskImage, createCameraInput } from '@/services/storageService'
@@ -74,23 +76,22 @@ export function StudentStation() {
         // 2. Lấy Group của HS
         currentStationInfo = await getStudentCurrentStation(sessionId, auth.user.id)
         if (!currentStationInfo) throw new Error("Bạn chưa được phân nhóm trong phiên này")
-        await import('@/services/offlineService').then(o => o.cacheData(`student_station_${sessionId}_${auth.user.id}`, currentStationInfo))
+        await cacheData(`student_station_${sessionId}_${auth.user.id}`, currentStationInfo)
 
         // 3. Lấy members của Group
         members = await getGroupMembers(currentStationInfo.groupId)
-        await import('@/services/offlineService').then(o => o.cacheData(`group_members_${currentStationInfo.groupId}`, members))
+        await cacheData(`group_members_${currentStationInfo.groupId}`, members)
 
         // 4. Lấy dữ liệu Phiên & Trạm & Task
         sessionData = await getSessionById(sessionId)
-        await import('@/services/offlineService').then(o => o.cacheData(`session_${sessionId}`, sessionData))
+        await cacheData(`session_${sessionId}`, sessionData)
       } else {
         // Đọc từ Cache ngoại tuyến
-        const offlineService = await import('@/services/offlineService')
-        currentStationInfo = await offlineService.getCachedData(`student_station_${sessionId}_${auth.user.id}`)
+        currentStationInfo = await getCachedData(`student_station_${sessionId}_${auth.user.id}`)
         if (!currentStationInfo) throw new Error("Không có dữ liệu offline của trạm này. Vui lòng kết nối mạng để tải dữ liệu.")
 
-        members = await offlineService.getCachedData(`group_members_${currentStationInfo.groupId}`) || []
-        sessionData = await offlineService.getCachedData(`session_${sessionId}`)
+        members = await getCachedData(`group_members_${currentStationInfo.groupId}`) || []
+        sessionData = await getCachedData(`session_${sessionId}`)
         if (!sessionData) throw new Error("Không tìm thấy dữ liệu phiên học được lưu offline.")
       }
 
@@ -157,7 +158,7 @@ export function StudentStation() {
     syncRef.current = setInterval(async () => {
       if (!sessionId) return
       try {
-        const { data } = await (await import('@/lib/supabase')).supabase
+        const { data } = await supabase
           .from('sessions')
           .select('timer_end_at')
           .eq('id', sessionId)
@@ -206,7 +207,7 @@ export function StudentStation() {
     setActiveStudentId(id)
     setIsQuickSwitchOpen(false)
     if (group?.id) {
-       import('@/services/sessionService').then(s => s.updateGroupActiveStudent(group.id, id)).catch(e => console.error(e))
+       updateGroupActiveStudent(group.id, id).catch(e => console.error(e))
     }
   }
 
@@ -260,7 +261,6 @@ export function StudentStation() {
       }
 
       if (!navigator.onLine) {
-        const { queueOfflineAction } = await import('@/services/offlineService')
         await queueOfflineAction('SUBMIT_TASK', input)
         setCompletedTasks(prev => ({ ...prev, [task.id]: true }))
         alert("🌐 Thiết bị đang ngoại tuyến. Bài làm của em đã được lưu vào hàng đợi và sẽ tự động nộp khi có mạng trở lại!")

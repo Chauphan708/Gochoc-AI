@@ -3,17 +3,27 @@
    ═══════════════════════════════════════ */
 
 import { createBrowserRouter } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
 import { RootLayout } from '@/layouts/RootLayout'
-import { LandingPage } from '@/pages/LandingPage'
-import { LoginPage } from '@/pages/LoginPage'
-import { TeacherDashboard } from '@/pages/teacher/TeacherDashboard'
-import { CreateSession } from '@/pages/teacher/CreateSession'
-import { TeacherStudents } from '@/pages/teacher/TeacherStudents'
-import { StudentJoin } from '@/pages/student/StudentJoin'
-import { StudentStation } from '@/pages/student/StudentStation'
-import { LobbyPage } from '@/pages/LobbyPage'
-import { TeacherLiveControl } from '@/pages/teacher/TeacherLiveControl'
-import { SessionReport } from '@/pages/teacher/SessionReport'
+
+// Lazy load components
+const LandingPage = lazy(() => import('@/pages/LandingPage').then(module => ({ default: module.LandingPage })))
+const LoginPage = lazy(() => import('@/pages/LoginPage').then(module => ({ default: module.LoginPage })))
+const TeacherDashboard = lazy(() => import('@/pages/teacher/TeacherDashboard').then(module => ({ default: module.TeacherDashboard })))
+const CreateSession = lazy(() => import('@/pages/teacher/CreateSession').then(module => ({ default: module.CreateSession })))
+const TeacherStudents = lazy(() => import('@/pages/teacher/TeacherStudents').then(module => ({ default: module.TeacherStudents })))
+const StudentJoin = lazy(() => import('@/pages/student/StudentJoin').then(module => ({ default: module.StudentJoin })))
+const StudentStation = lazy(() => import('@/pages/student/StudentStation').then(module => ({ default: module.StudentStation })))
+const LobbyPage = lazy(() => import('@/pages/LobbyPage').then(module => ({ default: module.LobbyPage })))
+const TeacherLiveControl = lazy(() => import('@/pages/teacher/TeacherLiveControl').then(module => ({ default: module.TeacherLiveControl })))
+const SessionReport = lazy(() => import('@/pages/teacher/SessionReport').then(module => ({ default: module.SessionReport })))
+
+// Suspense fallback
+const SuspenseWrapper = ({ children }: { children: React.ReactNode }) => (
+  <Suspense fallback={<div className="flex h-screen w-full items-center justify-center text-gray-500">Đang tải...</div>}>
+    {children}
+  </Suspense>
+)
 
 export const router = createBrowserRouter([
   {
@@ -22,34 +32,34 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <LandingPage />,
+        element: <SuspenseWrapper><LandingPage /></SuspenseWrapper>,
       },
       {
         path: 'login',
-        element: <LoginPage />,
+        element: <SuspenseWrapper><LoginPage /></SuspenseWrapper>,
       },
       {
         path: 'teacher',
         children: [
           {
             path: 'dashboard',
-            element: <TeacherDashboard />,
+            element: <SuspenseWrapper><TeacherDashboard /></SuspenseWrapper>,
           },
           {
             path: 'create-session',
-            element: <CreateSession />,
+            element: <SuspenseWrapper><CreateSession /></SuspenseWrapper>,
           },
           {
             path: 'students',
-            element: <TeacherStudents />,
+            element: <SuspenseWrapper><TeacherStudents /></SuspenseWrapper>,
           },
           {
             path: 'live/:sessionId',
-            element: <TeacherLiveControl />,
+            element: <SuspenseWrapper><TeacherLiveControl /></SuspenseWrapper>,
           },
           {
             path: 'report/:sessionId',
-            element: <SessionReport />,
+            element: <SuspenseWrapper><SessionReport /></SuspenseWrapper>,
           },
         ],
       },
@@ -58,17 +68,17 @@ export const router = createBrowserRouter([
         children: [
           {
             path: 'join',
-            element: <StudentJoin />,
+            element: <SuspenseWrapper><StudentJoin /></SuspenseWrapper>,
           },
           {
             path: 'station/:sessionId/:stationId',
-            element: <StudentStation />,
+            element: <SuspenseWrapper><StudentStation /></SuspenseWrapper>,
           },
         ],
       },
       {
         path: 'lobby/:sessionId',
-        element: <LobbyPage />,
+        element: <SuspenseWrapper><LobbyPage /></SuspenseWrapper>,
       },
     ],
   },

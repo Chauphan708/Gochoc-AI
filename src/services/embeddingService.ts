@@ -13,9 +13,10 @@ import { supabase } from '@/lib/supabase'
 
 // ─── CẤU HÌNH ──────────────────────────────
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || ''
-const EMBEDDING_MODEL = 'text-embedding-004'
-const EMBEDDING_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:embedContent`
+// Không dùng trực tiếp API Key ở client
+// const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || ''
+// const EMBEDDING_MODEL = 'text-embedding-004'
+// const EMBEDDING_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:embedContent`
 
 const CHUNK_SIZE = 500      // ký tự / chunk
 const CHUNK_OVERLAP = 100   // overlap giữa các chunk
@@ -86,32 +87,21 @@ export function chunkText(text: string): string[] {
  * Trả về mảng 768 chiều.
  */
 export async function embedText(text: string, apiKey?: string): Promise<number[]>{
-  const key = apiKey || localStorage.getItem('gemini_api_key') || localStorage.getItem('VITE_gemini_api_key') || localStorage.getItem('VITE_GEMINI_API_KEY') || GEMINI_API_KEY
-  if (!key) {
-    // Fallback: trả về zero vector khi chưa có API key
-    console.warn('⚠️ Gemini API key chưa cấu hình, dùng zero vector')
+  const key = apiKey || localStorage.getItem('gemini_api_key') || localStorage.getItem('VITE_GEMINI_API_KEY')
+
+  const { data, error } = await supabase.functions.invoke('gemini-proxy', {
+    body: {
+      action: 'generateEmbeddings',
+      payload: { text }
+    },
+    headers: key ? { 'x-gemini-api-key': key } : undefined
+  })
+
+  if (error || !data) {
+    console.error('Embedding Edge Function error:', error)
     return new Array(768).fill(0)
   }
 
-  const response = await fetch(`${EMBEDDING_API_URL}?key=${key}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: `models/${EMBEDDING_MODEL}`,
-      content: {
-        parts: [{ text }],
-      },
-      taskType: 'RETRIEVAL_DOCUMENT',
-    }),
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    console.error('Embedding API error:', errorText)
-    throw new Error(`Embedding API lỗi: ${response.status}`)
-  }
-
-  const data = await response.json()
   return data.embedding?.values ?? []
 }
 
@@ -120,28 +110,21 @@ export async function embedText(text: string, apiKey?: string): Promise<number[]
  * Dùng taskType khác để tối ưu retrieval.
  */
 export async function embedQuery(text: string, apiKey?: string): Promise<number[]> {
-  const key = apiKey || localStorage.getItem('gemini_api_key') || localStorage.getItem('VITE_gemini_api_key') || localStorage.getItem('VITE_GEMINI_API_KEY') || GEMINI_API_KEY
-  if (!key) {
+  const key = apiKey || localStorage.getItem('gemini_api_key') || localStorage.getItem('VITE_GEMINI_API_KEY')
+
+  const { data, error } = await supabase.functions.invoke('gemini-proxy', {
+    body: {
+      action: 'generateEmbeddings',
+      payload: { text }
+    },
+    headers: key ? { 'x-gemini-api-key': key } : undefined
+  })
+
+  if (error || !data) {
+    console.error('Embedding Query Edge Function error:', error)
     return new Array(768).fill(0)
   }
 
-  const response = await fetch(`${EMBEDDING_API_URL}?key=${key}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: `models/${EMBEDDING_MODEL}`,
-      content: {
-        parts: [{ text }],
-      },
-      taskType: 'RETRIEVAL_QUERY',
-    }),
-  })
-
-  if (!response.ok) {
-    throw new Error(`Embedding query API lỗi: ${response.status}`)
-  }
-
-  const data = await response.json()
   return data.embedding?.values ?? []
 }
 

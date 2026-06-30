@@ -27,7 +27,9 @@ import {
   createGroupsInLobby,
   getSessionById,
   startSession,
-  getStudentCurrentStation 
+  getStudentCurrentStation,
+  createEmptyGroups,
+  joinGroupStudentChoice
 } from '@/services/sessionService'
 import type { Session } from '@/types/database'
 import { useAuthStore } from '@/stores/authStore'
@@ -317,7 +319,6 @@ export function LobbyPage() {
                              return
                            }
                            const numGroups = Math.ceil(participants.length / (session.group_size || 4))
-                           const { createEmptyGroups } = await import('@/services/sessionService')
                            await createEmptyGroups(session.id, numGroups, stationIds)
                            alert('Đã mở đăng ký nhóm thành công! Học sinh đã có thể chọn nhóm.')
                          } catch (e: any) {
@@ -361,7 +362,6 @@ export function LobbyPage() {
                             alert('Vui lòng đăng nhập!')
                             return
                           }
-                          const { joinGroupStudentChoice } = await import('@/services/sessionService')
                           await joinGroupStudentChoice(grp.id, user.id, 'member')
                           alert('Gia nhập nhóm thành công!')
                           loadParticipants()

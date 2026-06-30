@@ -15,8 +15,9 @@ import { getRAGContext } from './embeddingService'
 
 // ─── CẤU HÌNH ──────────────────────────────
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || ''
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
+// Không còn dùng trực tiếp API Key ở Client, thay vào đó gọi Supabase Edge Function
+// const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || ''
+// const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
 
 // ─── SYSTEM PROMPT TEMPLATE ─────────────────
 // Lấy từ kế hoạch NLM — Mục 2.2.D
@@ -106,48 +107,33 @@ async function callGemini(
   userMessage: string,
   apiKey?: string
 ): Promise<string> {
-  const key = apiKey || localStorage.getItem('gemini_api_key') || localStorage.getItem('VITE_GEMINI_API_KEY') || GEMINI_API_KEY
-  if (!key) {
-    // Fallback khi chưa có API key — trả lời demo
+  const key = apiKey || localStorage.getItem('gemini_api_key') || localStorage.getItem('VITE_GEMINI_API_KEY')
+  // Nếu local storage/người dùng cố tình truyền vào key (ví dụ giáo viên dùng API key riêng)
+  // thì ưu tiên dùng key đó qua proxy, nếu không thì proxy sẽ tự lấy key ở env.
+  
+  const { data, error } = await supabase.functions.invoke('gemini-proxy', {
+    body: {
+      action: 'generateChat',
+      payload: {
+        systemPrompt,
+        history,
+        userMessage
+      }
+    },
+    // Nếu có apiKey riêng thì truyền qua Header để proxy dùng (nếu proxy code có hỗ trợ)
+    headers: key ? { 'x-gemini-api-key': key } : undefined
+  })
+
+  if (error || !data) {
+    console.error('Gemini Edge Function error:', error)
+    // Fallback nếu API lỗi (ví dụ không kết nối được)
     return getFallbackResponse(userMessage)
   }
 
-  const response = await fetch(`${GEMINI_API_URL}?key=${key}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      system_instruction: {
-        parts: [{ text: systemPrompt }],
-      },
-      contents: [
-        ...history,
-        { role: 'user', parts: [{ text: userMessage }] },
-      ],
-      generationConfig: {
-        temperature: 0.7,
-        topP: 0.95,
-        topK: 40,
-        maxOutputTokens: 1024,
-      },
-      safetySettings: [
-        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-      ],
-    }),
-  })
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    console.error('Gemini API error:', errorText)
-    return '⚠️ Xin lỗi, mình gặp sự cố kỹ thuật. Em hãy thử lại sau nhé!'
-  }
-
-  const data = await response.json()
   return data.candidates?.[0]?.content?.parts?.[0]?.text
     ?? '⚠️ Mình không tạo được câu trả lời. Em hãy thử hỏi lại nhé!'
 }
+
 
 /** Phản hồi mẫu khi chưa có API key — cho demo/phát triển */
 function getFallbackResponse(userMessage: string): string {
