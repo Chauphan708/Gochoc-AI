@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- COMBINED INITIALIZATION SQL FOR GOCHOC-AI
--- Generated on 2026-06-30T14:37:23.921Z
+-- Generated on 2026-06-30T14:40:41.341Z
 -- Run this script in Supabase SQL Editor to set up your database.
 -- ==============================================================================
 
@@ -975,10 +975,7 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Set up Row Level Security (RLS) for the storage.objects table
 -- This table is owned by the Supabase Storage API, but we can manage policies
-
--- Enable RLS on storage.objects (if not already enabled)
--- NOTE: Supabase usually enables this by default, but just in case
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+-- (RLS is already enabled by default on storage.objects in Supabase)
 
 -- 1. Allow public read access to all files in the task-uploads bucket
 -- Since it's public, anyone can get the public URL and view the file.
