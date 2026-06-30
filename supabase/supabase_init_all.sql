@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- COMBINED INITIALIZATION SQL FOR GOCHOC-AI
--- Generated on 2026-06-30T14:33:50.993Z
+-- Generated on 2026-06-30T14:37:23.921Z
 -- Run this script in Supabase SQL Editor to set up your database.
 -- ==============================================================================
 
@@ -505,6 +505,25 @@ CREATE TRIGGER update_session_participants_last_seen
 
 
 -- ------------------------------------------------------------------------------
+-- Migration: 001b_station_embeddings.sql
+-- ------------------------------------------------------------------------------
+
+-- ========================================================
+-- MIGRATION 004: Create station_embeddings Table
+-- GócHọc AI MVP-α
+-- ========================================================
+
+CREATE TABLE IF NOT EXISTS public.station_embeddings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  station_id UUID REFERENCES public.stations(id) ON DELETE CASCADE NOT NULL,
+  content TEXT NOT NULL,
+  embedding VECTOR(768),
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+
+-- ------------------------------------------------------------------------------
 -- Migration: 002_tighten_rls.sql
 -- ------------------------------------------------------------------------------
 
@@ -872,25 +891,6 @@ CREATE POLICY "se_modify_teacher" ON public.station_embeddings
 -- INSERT INTO storage.buckets (id, name, public)
 -- VALUES ('task-uploads', 'task-uploads', false)
 -- ON CONFLICT (id) DO NOTHING;
-
-
--- ------------------------------------------------------------------------------
--- Migration: 004_station_embeddings.sql
--- ------------------------------------------------------------------------------
-
--- ========================================================
--- MIGRATION 004: Create station_embeddings Table
--- GócHọc AI MVP-α
--- ========================================================
-
-CREATE TABLE IF NOT EXISTS public.station_embeddings (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  station_id UUID REFERENCES public.stations(id) ON DELETE CASCADE NOT NULL,
-  content TEXT NOT NULL,
-  embedding VECTOR(768),
-  metadata JSONB DEFAULT '{}'::jsonb,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
 
 
 -- ------------------------------------------------------------------------------
