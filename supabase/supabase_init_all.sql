@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- COMBINED INITIALIZATION SQL FOR GOCHOC-AI
--- Generated on 2026-07-01T13:58:18.849Z
+-- Generated on 2026-07-01T14:08:17.493Z
 -- Run this script in Supabase SQL Editor to set up your database.
 -- ==============================================================================
 
@@ -985,12 +985,14 @@ ON CONFLICT (id) DO NOTHING;
 
 -- 1. Allow public read access to all files in the task-uploads bucket
 -- Since it's public, anyone can get the public URL and view the file.
+DROP POLICY IF EXISTS "Public Read Access for task-uploads" ON storage.objects;
 CREATE POLICY "Public Read Access for task-uploads" 
 ON storage.objects FOR SELECT 
 USING (bucket_id = 'task-uploads');
 
 -- 2. Allow authenticated users to upload files
 -- Both students (uploading task photos) and teachers (knowledge files) need this.
+DROP POLICY IF EXISTS "Authenticated users can upload to task-uploads" ON storage.objects;
 CREATE POLICY "Authenticated users can upload to task-uploads" 
 ON storage.objects FOR INSERT 
 WITH CHECK (
@@ -999,6 +1001,7 @@ WITH CHECK (
 );
 
 -- 3. Allow users to update their own files
+DROP POLICY IF EXISTS "Users can update own uploads in task-uploads" ON storage.objects;
 CREATE POLICY "Users can update own uploads in task-uploads" 
 ON storage.objects FOR UPDATE 
 USING (
@@ -1007,6 +1010,7 @@ USING (
 );
 
 -- 4. Allow users to delete their own files
+DROP POLICY IF EXISTS "Users can delete own uploads in task-uploads" ON storage.objects;
 CREATE POLICY "Users can delete own uploads in task-uploads" 
 ON storage.objects FOR DELETE 
 USING (
