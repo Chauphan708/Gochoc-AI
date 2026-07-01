@@ -261,6 +261,11 @@ body {
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
 }
 
+select.input option {
+  background-color: #0f172a; /* Dark background matching the dark theme */
+  color: #f1f5f9;            /* Light text color for high contrast */
+}
+
 /* ═══════════════════════════════════════
    BADGES & CHIPS
    ═══════════════════════════════════════ */
