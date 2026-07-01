@@ -21,12 +21,13 @@ import { UserPlus } from 'lucide-react'
 import { loginTeacher, registerTeacher } from '@/services/authService'
 import { useAuthStore } from '@/stores/authStore'
 
-const loginSchema = z.object({
+const authSchema = z.object({
   email: z.string().email('Email không hợp lệ'),
   password: z.string().min(6, 'Mật khẩu phải có ít nhất 6 ký tự'),
+  confirmPassword: z.string().optional(),
 })
 
-type LoginForm = z.infer<typeof loginSchema>
+type AuthForm = z.infer<typeof authSchema>
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -40,16 +41,21 @@ export function LoginPage() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema),
+  } = useForm<AuthForm>({
+    resolver: zodResolver(authSchema),
   })
 
-  const onSubmit = async (data: LoginForm) => {
+  const onSubmit = async (data: AuthForm) => {
     setIsLoading(true)
     setErrorMessage('')
 
     try {
       if (isSignUp) {
+        if (data.password !== data.confirmPassword) {
+          setErrorMessage('Mật khẩu nhập lại không khớp')
+          setIsLoading(false)
+          return
+        }
         const fullName = data.email.split('@')[0]
         const teacher = await registerTeacher(data.email, data.password, fullName)
         setUser(teacher, 'teacher')
@@ -107,7 +113,7 @@ export function LoginPage() {
                 <input
                   id="input-email"
                   type="email"
-                  className={`input pl-10 ${errors.email ? 'input-error' : ''}`}
+                  className={`input !pl-10 ${errors.email ? 'input-error' : ''}`}
                   placeholder="giaovien@school.edu.vn"
                   {...register('email')}
                 />
@@ -127,7 +133,7 @@ export function LoginPage() {
                 <input
                   id="input-password"
                   type={showPassword ? 'text' : 'password'}
-                  className={`input pl-10 pr-10 ${errors.password ? 'input-error' : ''}`}
+                  className={`input !pl-10 !pr-10 ${errors.password ? 'input-error' : ''}`}
                   placeholder="••••••••"
                   {...register('password')}
                 />
@@ -147,6 +153,25 @@ export function LoginPage() {
                 <p className="text-xs text-red-400 mt-1">{errors.password.message}</p>
               )}
             </div>
+
+            {/* Confirm Password (Sign Up only) */}
+            {isSignUp && (
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                  Nhập lại mật khẩu
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input
+                    id="input-confirm-password"
+                    type={showPassword ? 'text' : 'password'}
+                    className="input !pl-10 !pr-10"
+                    placeholder="••••••••"
+                    {...register('confirmPassword')}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Error message */}
             {errorMessage && (
