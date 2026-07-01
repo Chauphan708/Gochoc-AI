@@ -16,9 +16,9 @@ import {
   Trash2,
   Settings
 } from 'lucide-react'
-import { getStudentsByTeacher, importStudentsFromCSV } from '@/services/studentService'
+import { getStudentsByTeacher, importStudentsFromCSV, createStudent } from '@/services/studentService'
 import { useAuthStore } from '@/stores/authStore'
-import type { Student } from '@/types/database'
+import type { Student, Gender } from '@/types/database'
 
 export function TeacherStudents() {
   const navigate = useNavigate()
@@ -27,6 +27,17 @@ export function TeacherStudents() {
   const [isLoading, setIsLoading] = useState(true)
   const [isImporting, setIsImporting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // States for Add Student Modal
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [newStudent, setNewStudent] = useState({
+    displayName: '',
+    studentCode: '',
+    className: '',
+    gender: 'male' as Gender
+  })
+  const [isSaving, setIsSaving] = useState(false)
+  const [modalError, setModalError] = useState('')
 
   useEffect(() => {
     if (user?.id) {
@@ -44,6 +55,42 @@ export function TeacherStudents() {
       console.error(error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleAddStudent = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user) return
+    if (!newStudent.displayName.trim() || !newStudent.studentCode.trim()) {
+      setModalError('Vui lòng điền đầy đủ Họ tên và Mã học sinh')
+      return
+    }
+
+    setIsSaving(true)
+    setModalError('')
+    try {
+      await createStudent({
+        displayName: newStudent.displayName,
+        studentCode: newStudent.studentCode,
+        teacherId: user.id,
+        className: newStudent.className || undefined,
+        gender: newStudent.gender
+      })
+      
+      // Reset state and close modal
+      setNewStudent({
+        displayName: '',
+        studentCode: '',
+        className: '',
+        gender: 'male'
+      })
+      setIsAddModalOpen(false)
+      await loadStudents()
+    } catch (error: any) {
+      console.error(error)
+      setModalError(error.message || 'Tạo học sinh thất bại')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -119,7 +166,10 @@ export function TeacherStudents() {
               )}
               {isImporting ? 'Đang Import...' : 'Import CSV'}
             </button>
-            <button className="btn btn-primary">
+            <button 
+              className="btn btn-primary cursor-pointer"
+              onClick={() => setIsAddModalOpen(true)}
+            >
               <UserPlus className="w-4 h-4" />
               Thêm Học sinh
             </button>
@@ -223,6 +273,113 @@ export function TeacherStudents() {
         </div>
 
       </div>
+
+      {/* Add Student Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="glass-card-static w-full max-w-md p-6 animate-scale-in relative border border-white/10">
+            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-indigo-400" />
+              Thêm học sinh mới
+            </h2>
+
+            <form onSubmit={handleAddStudent} className="space-y-4">
+              {/* Name */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  Họ và tên <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ví dụ: Nguyễn Văn A"
+                  className="input"
+                  value={newStudent.displayName}
+                  onChange={e => setNewStudent(prev => ({ ...prev, displayName: e.target.value }))}
+                />
+              </div>
+
+              {/* Student Code */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">
+                  Mã học sinh (MSSV) <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ví dụ: HS001"
+                  className="input font-mono"
+                  value={newStudent.studentCode}
+                  onChange={e => setNewStudent(prev => ({ ...prev, studentCode: e.target.value }))}
+                />
+              </div>
+
+              {/* Class & Gender */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
+                    Lớp
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ví dụ: 8A"
+                    className="input"
+                    value={newStudent.className}
+                    onChange={e => setNewStudent(prev => ({ ...prev, className: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">
+                    Giới tính
+                  </label>
+                  <select
+                    className="input"
+                    value={newStudent.gender}
+                    onChange={e => setNewStudent(prev => ({ ...prev, gender: e.target.value as Gender }))}
+                  >
+                    <option value="male">Nam</option>
+                    <option value="female">Nữ</option>
+                    <option value="other">Khác</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Error message */}
+              {modalError && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400">
+                  {modalError}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddModalOpen(false)
+                    setModalError('')
+                  }}
+                  className="btn btn-ghost text-slate-300 cursor-pointer"
+                  disabled={isSaving}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary cursor-pointer"
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    'Lưu lại'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
