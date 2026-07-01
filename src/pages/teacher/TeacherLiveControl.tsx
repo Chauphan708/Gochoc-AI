@@ -46,7 +46,6 @@ export function TeacherLiveControl() {
   // Submissions review states
   const [activeRightTab, setActiveRightTab] = useState<'chat' | 'submissions'>('chat')
   const [editingResultId, setEditingResultId] = useState<string | null>(null)
-  const [editScore, setEditScore] = useState<number>(0)
   const [editFeedback, setEditFeedback] = useState<string>('')
   const [isSavingGrade, setIsSavingGrade] = useState<boolean>(false)
 
@@ -591,7 +590,6 @@ export function TeacherLiveControl() {
                           <button 
                             onClick={() => {
                               setEditingResultId(result.id)
-                              setEditScore(result.score)
                               setEditFeedback(result.feedback || '')
                             }}
                             className="btn btn-ghost btn-sm text-xs text-indigo-400 hover:text-indigo-300 cursor-pointer"
@@ -600,61 +598,70 @@ export function TeacherLiveControl() {
                           </button>
                         ) : (
                           <form 
-                            onSubmit={async (e) => {
-                              e.preventDefault()
-                              setIsSavingGrade(true)
-                              try {
-                                const updated = await gradeTaskResultByTeacher(result.id, editScore, editFeedback)
-                                setTaskResults(prev => prev.map(r => r.id === result.id ? updated : r))
-                                setEditingResultId(null)
-                                alert('Đã lưu kết quả duyệt bài thành công!')
-                              } catch (err: any) {
-                                alert('Chấm điểm thất bại: ' + err.message)
-                              } finally {
-                                setIsSavingGrade(false)
-                              }
-                            }}
+                            onSubmit={(e) => e.preventDefault()}
                             className="bg-black/40 border border-white/10 rounded-lg p-3 space-y-3"
                           >
-                            <div className="grid grid-cols-2 gap-3 items-center">
-                              <div>
-                                <label className="block text-[10px] text-slate-400 font-bold mb-1 uppercase">Điểm (Tối đa {result.max_score}):</label>
-                                <input 
-                                  type="number"
-                                  min="0"
-                                  max={result.max_score}
-                                  value={editScore}
-                                  onChange={e => setEditScore(Math.min(result.max_score, Math.max(0, parseInt(e.target.value) || 0)))}
-                                  className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none w-full"
-                                />
-                              </div>
-                              <div className="flex justify-end gap-2 pt-4">
-                                <button 
-                                  type="button" 
-                                  onClick={() => setEditingResultId(null)}
-                                  className="px-2 py-1 bg-white/5 text-slate-400 text-xs rounded hover:bg-white/10 cursor-pointer"
-                                  disabled={isSavingGrade}
-                                >
-                                  Hủy
-                                </button>
-                                <button 
-                                  type="submit" 
-                                  className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-500 cursor-pointer"
-                                  disabled={isSavingGrade}
-                                >
-                                  {isSavingGrade ? 'Đang lưu...' : 'Lưu lại'}
-                                </button>
-                              </div>
-                            </div>
                             <div>
-                              <label className="block text-[10px] text-slate-400 font-bold mb-1 uppercase">Nhận xét của GV:</label>
+                              <label className="block text-[10px] text-slate-400 font-bold mb-1 uppercase">Nhận xét của GV (Bắt buộc nếu Chưa đạt):</label>
                               <textarea 
                                 value={editFeedback}
                                 onChange={e => setEditFeedback(e.target.value)}
                                 className="bg-white/5 border border-white/10 rounded p-2 text-xs text-white focus:outline-none w-full"
                                 rows={2}
-                                placeholder="Gõ nhận xét khuyến khích hoặc chỉnh sửa của bạn..."
+                                placeholder="Gõ nhận xét khuyến khích hoặc yêu cầu sửa đổi..."
                               />
+                            </div>
+                            <div className="flex justify-end gap-2 pt-2 border-t border-white/5">
+                              <button 
+                                type="button" 
+                                onClick={() => setEditingResultId(null)}
+                                className="px-3 py-1.5 bg-white/5 text-slate-400 text-xs font-medium rounded hover:bg-white/10 cursor-pointer"
+                                disabled={isSavingGrade}
+                              >
+                                Hủy
+                              </button>
+                              <button 
+                                type="button" 
+                                onClick={async () => {
+                                  if (!editFeedback.trim()) {
+                                    alert('Vui lòng nhập nhận xét vì sao chưa đạt để HS biết cách sửa.')
+                                    return
+                                  }
+                                  setIsSavingGrade(true)
+                                  try {
+                                    const updated = await gradeTaskResultByTeacher(result.id, 'rejected', editFeedback)
+                                    setTaskResults(prev => prev.map(r => r.id === result.id ? updated : r))
+                                    setEditingResultId(null)
+                                  } catch (err: any) {
+                                    alert('Đánh giá thất bại: ' + err.message)
+                                  } finally {
+                                    setIsSavingGrade(false)
+                                  }
+                                }}
+                                className="px-3 py-1.5 bg-red-500/20 text-red-400 text-xs font-medium rounded border border-red-500/30 hover:bg-red-500/30 cursor-pointer flex items-center gap-1"
+                                disabled={isSavingGrade}
+                              >
+                                ❌ Chưa đạt
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={async () => {
+                                  setIsSavingGrade(true)
+                                  try {
+                                    const updated = await gradeTaskResultByTeacher(result.id, 'approved', editFeedback)
+                                    setTaskResults(prev => prev.map(r => r.id === result.id ? updated : r))
+                                    setEditingResultId(null)
+                                  } catch (err: any) {
+                                    alert('Đánh giá thất bại: ' + err.message)
+                                  } finally {
+                                    setIsSavingGrade(false)
+                                  }
+                                }}
+                                className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-medium rounded hover:bg-emerald-500 cursor-pointer flex items-center gap-1"
+                                disabled={isSavingGrade}
+                              >
+                                ✅ Đạt
+                              </button>
                             </div>
                           </form>
                         )}

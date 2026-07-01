@@ -118,27 +118,49 @@ export function StudentStation() {
           .from('task_results')
           .select('*')
           .eq('group_id', currentStationInfo.groupId)
+          .order('completed_at', { ascending: true })
         
         const completedMap: Record<string, boolean> = {}
         const resultMap: Record<string, any> = {}
         
+        // Restore answers to state so if rejected, student can edit them
+        const restoredText: Record<string, string> = {}
+        const restoredPhotos: Record<string, string> = {}
+        const restoredQuiz: Record<string, number[]> = {}
+        
         ;(resultsData ?? []).forEach((res: any) => {
           const taskObj = dbTasks.find((t: any) => t.id === res.task_id)
           if (taskObj) {
+            let isMyResult = false
             if (taskObj.scoring_mode === 'individual') {
               if (res.submitted_by === auth.user.id) {
-                completedMap[res.task_id] = true
-                resultMap[res.task_id] = res
+                isMyResult = true
               }
             } else {
-              completedMap[res.task_id] = true
+              isMyResult = true
+            }
+
+            if (isMyResult) {
+              completedMap[res.task_id] = res.grading_status !== 'rejected'
               resultMap[res.task_id] = res
+
+              // Restore answers
+              if (taskObj.type === 'short_answer' && res.answer?.text) {
+                restoredText[res.task_id] = res.answer.text
+              } else if (taskObj.type === 'photo_upload' && res.answer?.url) {
+                restoredPhotos[res.task_id] = res.answer.url
+              } else if (taskObj.type === 'quiz' && res.answer?.answers) {
+                restoredQuiz[res.task_id] = res.answer.answers
+              }
             }
           }
         })
         
         setCompletedTasks(completedMap)
         setTaskResults(resultMap)
+        setTextAnswers(restoredText)
+        setUploadedPhotos(restoredPhotos)
+        setQuizAnswers(restoredQuiz)
       }
     } catch (err: any) {
       alert(err.message)
@@ -554,6 +576,15 @@ export function StudentStation() {
                   {/* Task Internal UI */}
                   {!isCompleted && (
                     <div className="bg-black/20 rounded-lg p-4 border border-white/5 space-y-4">
+                      {/* Trả bài - Feedback */}
+                      {taskResults[task.id]?.grading_status === 'rejected' && (
+                        <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-lg text-sm text-red-200">
+                          <strong className="text-red-400 block mb-1">❌ Trả bài: Chưa đạt</strong>
+                          <p>{taskResults[task.id].feedback}</p>
+                          <div className="text-xs text-red-400/80 mt-2">Vui lòng điều chỉnh lại đáp án và nộp lại.</div>
+                        </div>
+                      )}
+
                       {/* QUIZ UI */}
                       {task.type === 'quiz' && content.questions?.map((q: any, qIdx: number) => (
                         <div key={qIdx} className="mb-4">

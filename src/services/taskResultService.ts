@@ -491,8 +491,8 @@ export async function getStudentResults(studentId: string): Promise<TaskResult[]
 /** GV chấm lại / duyệt bài làm tự luận/ảnh/thực hành */
 export async function gradeTaskResultByTeacher(
   resultId: string,
-  newScore: number,
-  newFeedback: string
+  verdict: 'approved' | 'rejected',
+  teacherFeedback: string
 ): Promise<TaskResult> {
   // 1. Lấy kết quả hiện tại
   const { data: currentResult, error: fetchErr } = await supabase
@@ -503,13 +503,7 @@ export async function gradeTaskResultByTeacher(
 
   if (fetchErr || !currentResult) throw new Error('Không tìm thấy bài làm')
 
-  const oldScore = currentResult.score ?? 0
-  const scoreDiff = newScore - oldScore
-
-  // Tính XP dựa trên điểm mới
-  const oldXp = currentResult.xp_earned ?? 0
-  
-  // Lấy task để biết scoring_mode
+  // Lấy task để biết scoring_mode và max points
   const { data: task } = await supabase
     .from('tasks')
     .select('*')
@@ -518,44 +512,67 @@ export async function gradeTaskResultByTeacher(
 
   if (!task) throw new Error('Không tìm thấy thông tin nhiệm vụ')
 
-  const newXp = calculateXP(newScore, task.points, task.scoring_mode)
-  const xpDiff = newXp - oldXp
+  if (verdict === 'approved') {
+    // ĐẠT: cho điểm tối đa + cộng XP
+    const newScore = task.points
+    const newXp = calculateXP(newScore, task.points, task.scoring_mode)
+    const oldScore = currentResult.score ?? 0
+    const oldXp = currentResult.xp_earned ?? 0
+    const scoreDiff = newScore - oldScore
+    const xpDiff = newXp - oldXp
 
-  // 2. Cập nhật task_results
-  const { data: updatedResult, error: updateErr } = await supabase
-    .from('task_results')
-    .update({
-      score: newScore,
-      xp_earned: newXp,
-      feedback: newFeedback,
-      grading_status: 'graded',
-    } as any)
-    .eq('id', resultId)
-    .select()
-    .single()
+    const { data: updatedResult, error: updateErr } = await supabase
+      .from('task_results')
+      .update({
+        score: newScore,
+        xp_earned: newXp,
+        feedback: teacherFeedback || '✅ GV đã duyệt: ĐẠT! Tuyệt vời!',
+        grading_status: 'graded',
+      } as any)
+      .eq('id', resultId)
+      .select()
+      .single()
 
-  if (updateErr) throw new Error(`Cập nhật điểm thất bại: ${updateErr.message}`)
+    if (updateErr) throw new Error(`Cập nhật điểm thất bại: ${updateErr.message}`)
 
-  // 3. Cập nhật điểm & XP cho học sinh (submitted_for)
-  const submittedFor = (currentResult.submitted_for || []) as string[]
-  const scoreDistribution = currentResult.score_distribution
+    // Cộng điểm & XP cho học sinh
+    const submittedFor = (currentResult.submitted_for || []) as string[]
+    const scoreDistribution = currentResult.score_distribution
 
-  const pointsDiffPerStudent =
-    scoreDistribution === 'equal'
-      ? Math.floor(scoreDiff / submittedFor.length)
-      : scoreDiff
+    const pointsDiffPerStudent =
+      scoreDistribution === 'equal'
+        ? Math.floor(scoreDiff / submittedFor.length)
+        : scoreDiff
 
-  const xpDiffPerStudent =
-    scoreDistribution === 'equal'
-      ? Math.floor(xpDiff / submittedFor.length)
-      : xpDiff
+    const xpDiffPerStudent =
+      scoreDistribution === 'equal'
+        ? Math.floor(xpDiff / submittedFor.length)
+        : xpDiff
 
-  await Promise.all(
-    submittedFor.map(async (studentId) => {
-      await addPoints(studentId, pointsDiffPerStudent)
-      await addXP(studentId, xpDiffPerStudent)
-    })
-  )
+    await Promise.all(
+      submittedFor.map(async (studentId) => {
+        await addPoints(studentId, pointsDiffPerStudent)
+        await addXP(studentId, xpDiffPerStudent)
+      })
+    )
 
-  return updatedResult
+    return updatedResult
+  } else {
+    // CHƯA ĐẠT: giữ điểm 0, gửi feedback để HS sửa và nộp lại
+    const { data: updatedResult, error: updateErr } = await supabase
+      .from('task_results')
+      .update({
+        score: 0,
+        xp_earned: 0,
+        feedback: teacherFeedback || '❌ GV nhận xét: Chưa đạt. Vui lòng xem lại và nộp lại.',
+        grading_status: 'rejected',
+      } as any)
+      .eq('id', resultId)
+      .select()
+      .single()
+
+    if (updateErr) throw new Error(`Cập nhật thất bại: ${updateErr.message}`)
+
+    return updatedResult
+  }
 }
