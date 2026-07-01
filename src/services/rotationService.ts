@@ -171,15 +171,21 @@ export async function initializeRotation(sessionId: string): Promise<void> {
   await Promise.all(updates)
 
   // Cập nhật session status → active + bắt đầu timer
-  const rotationMinutes = (await supabase
+  const sessionData = (await supabase
     .from('sessions')
-    .select('rotation_time_minutes')
+    .select('rotation_time_minutes, round_durations')
     .eq('id', sessionId)
     .single()
-  ).data?.rotation_time_minutes ?? 15
+  ).data
+
+  const roundDurationsStr = sessionData?.round_durations
+  const durations = roundDurationsStr ? roundDurationsStr.split(',').map(Number) : []
+  const roundMins = (durations.length > 0 && durations[0] > 0) 
+    ? durations[0] 
+    : (sessionData?.rotation_time_minutes ?? 15)
 
   const now = new Date()
-  const timerEnd = new Date(now.getTime() + rotationMinutes * 60 * 1000)
+  const timerEnd = new Date(now.getTime() + roundMins * 60 * 1000)
 
   await supabase
     .from('sessions')
@@ -244,18 +250,22 @@ export async function rotateAllGroups(sessionId: string): Promise<void> {
   // Restart timer cho vòng mới
   const { data: sess } = await supabase
     .from('sessions')
-    .select('rotation_time_minutes')
+    .select('rotation_time_minutes, round_durations')
     .eq('id', sessionId)
     .single()
 
-  const rotMins = sess?.rotation_time_minutes ?? 15
-  const timerEnd = new Date(Date.now() + rotMins * 60 * 1000)
+  const nextRound = groups[0] ? (groups[0].current_rotation ?? 0) + 1 : 0
+  const rDurations = sess?.round_durations ? sess.round_durations.split(',').map(Number) : []
+  const roundMins = (rDurations.length > nextRound && rDurations[nextRound] > 0)
+    ? rDurations[nextRound]
+    : (sess?.rotation_time_minutes ?? 15)
+  const timerEnd = new Date(Date.now() + roundMins * 60 * 1000)
 
   await supabase
     .from('sessions')
     .update({
       timer_end_at: timerEnd.toISOString(),
-      current_round: groups[0] ? (groups[0].current_rotation ?? 0) + 1 : 0,
+      current_round: nextRound,
     } as any)
     .eq('id', sessionId)
 }

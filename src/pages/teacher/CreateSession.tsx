@@ -3,7 +3,7 @@
    Tạo phiên dạy học theo góc
    ═══════════════════════════════════════ */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -93,6 +93,24 @@ export function CreateSession() {
   const deviceMode = watch('device_mode')
   const maxStations = watch('max_stations')
 
+  // Custom durations state
+  const [isCustomDurations, setIsCustomDurations] = useState(false)
+  const [customDurations, setCustomDurations] = useState<number[]>([15, 15, 15, 15])
+
+  useEffect(() => {
+    if (maxStations) {
+      setCustomDurations(prev => {
+        const next = [...prev]
+        if (next.length < maxStations) {
+          while (next.length < maxStations) next.push(15)
+        } else if (next.length > maxStations) {
+          return next.slice(0, maxStations)
+        }
+        return next
+      })
+    }
+  }, [maxStations])
+
   const onSubmit = async (data: SessionForm) => {
     if (!user) {
       alert('Vui lòng đăng nhập lại')
@@ -101,18 +119,23 @@ export function CreateSession() {
     
     setIsSubmitting(true)
     try {
+      const actualRotationTime = isCustomDurations ? customDurations[0] : data.rotation_time_minutes
+      const actualTotalTime = isCustomDurations ? customDurations.reduce((a, b) => a + b, 0) : data.total_time_minutes
+      const roundDurationsStr = isCustomDurations ? customDurations.join(',') : undefined
+
       // 1. Create Session
       const session = await createSession({
         teacherId: user.id,
         title: data.title,
         subject: data.subject,
         gradeLevel: data.grade_level,
-        rotationTimeMinutes: data.rotation_time_minutes,
-        totalTimeMinutes: data.total_time_minutes,
+        rotationTimeMinutes: actualRotationTime,
+        totalTimeMinutes: actualTotalTime,
         maxStations: data.max_stations,
         deviceMode: data.device_mode,
         groupingMode: data.grouping_mode,
         groupSize: data.group_size,
+        roundDurations: roundDurationsStr,
       })
 
       // 2. Create Stations
@@ -313,33 +336,74 @@ export function CreateSession() {
               </div>
 
               <div className="glass-card-static p-6">
-                <h2 className="text-white font-semibold mb-4">⏱️ Thời gian</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                      <Clock className="w-3.5 h-3.5 inline mr-1" />
-                      Mỗi vòng (phút)
-                    </label>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-white font-semibold flex items-center gap-1.5">⏱️ Thời gian</h2>
+                  <label className="flex items-center gap-2 text-xs text-indigo-400 cursor-pointer hover:text-indigo-300 transition-colors">
                     <input
-                      id="input-rotation-time"
-                      type="number"
-                      className="input"
-                      {...register('rotation_time_minutes', { valueAsNumber: true })}
+                      type="checkbox"
+                      className="rounded border-white/10 bg-white/5 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      checked={isCustomDurations}
+                      onChange={(e) => setIsCustomDurations(e.target.checked)}
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1.5">
-                      <Clock className="w-3.5 h-3.5 inline mr-1" />
-                      Tổng (phút)
-                    </label>
-                    <input
-                      id="input-total-time"
-                      type="number"
-                      className="input"
-                      {...register('total_time_minutes', { valueAsNumber: true })}
-                    />
-                  </div>
+                    Thời lượng từng vòng khác nhau
+                  </label>
                 </div>
+
+                {!isCustomDurations ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                        <Clock className="w-3.5 h-3.5 inline mr-1" />
+                        Mỗi vòng (phút)
+                      </label>
+                      <input
+                        id="input-rotation-time"
+                        type="number"
+                        className="input"
+                        {...register('rotation_time_minutes', { valueAsNumber: true })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                        <Clock className="w-3.5 h-3.5 inline mr-1" />
+                        Tổng (phút)
+                      </label>
+                      <input
+                        id="input-total-time"
+                        type="number"
+                        className="input"
+                        {...register('total_time_minutes', { valueAsNumber: true })}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {Array.from({ length: maxStations || 4 }).map((_, idx) => (
+                        <div key={idx}>
+                          <label className="block text-xs font-medium text-slate-400 mb-1">
+                            Vòng {idx + 1} (phút)
+                          </label>
+                          <input
+                            type="number"
+                            className="input text-center text-sm py-1.5"
+                            value={customDurations[idx] || 15}
+                            onChange={(e) => {
+                              const val = Math.max(1, parseInt(e.target.value) || 0)
+                              const updated = [...customDurations]
+                              updated[idx] = val
+                              setCustomDurations(updated)
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300 flex items-center justify-between">
+                      <span>Tổng thời gian (tính tự động):</span>
+                      <span className="font-bold text-sm">{customDurations.reduce((a, b) => a + b, 0)} phút</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <button

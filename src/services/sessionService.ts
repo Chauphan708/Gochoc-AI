@@ -61,6 +61,7 @@ export interface CreateSessionInput {
   groupingMode?: GroupingMode
   groupSize?: number
   deviceMode?: DeviceMode
+  roundDurations?: string
 }
 
 /** Tạo phiên học mới — Bước 1 trong flow GV */
@@ -83,6 +84,7 @@ export async function createSession(input: CreateSessionInput): Promise<Session>
       grouping_mode: input.groupingMode ?? 'random',
       group_size: input.groupSize ?? 4,
       device_mode: input.deviceMode ?? 'individual',
+      round_durations: input.roundDurations ?? null,
       status: 'draft',
     })
     .select()

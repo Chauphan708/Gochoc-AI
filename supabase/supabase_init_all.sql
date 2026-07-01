@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- COMBINED INITIALIZATION SQL FOR GOCHOC-AI
--- Generated on 2026-07-01T14:08:17.493Z
+-- Generated on 2026-07-01T14:48:41.507Z
 -- Run this script in Supabase SQL Editor to set up your database.
 -- ==============================================================================
 
@@ -1017,5 +1017,17 @@ USING (
     bucket_id = 'task-uploads' 
     AND auth.uid() = owner
 );
+
+
+-- ------------------------------------------------------------------------------
+-- Migration: 008_custom_round_durations.sql
+-- ------------------------------------------------------------------------------
+
+-- ==============================================================================
+-- 008_custom_round_durations.sql
+-- Add round_durations column to sessions table to support custom duration per round
+-- ==============================================================================
+
+ALTER TABLE public.sessions ADD COLUMN IF NOT EXISTS round_durations TEXT;
 
 

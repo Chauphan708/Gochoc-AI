@@ -82,6 +82,7 @@ export interface Session {
   ended_at: string | null
   timer_end_at: string | null
   current_round: number
+  round_durations: string | null
   created_at: string
 }
 
