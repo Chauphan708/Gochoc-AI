@@ -209,7 +209,7 @@ export function LoginPage() {
             <button
               id="btn-toggle-signup"
               onClick={() => setIsSignUp(!isSignUp)}
-              className="ml-1 text-indigo-400 hover:text-indigo-300 font-medium"
+              className="ml-1 text-indigo-400 hover:text-indigo-300 font-medium cursor-pointer"
             >
               {isSignUp ? 'Đăng nhập' : 'Đăng ký'}
             </button>
@@ -221,7 +221,7 @@ export function LoginPage() {
           <button
             id="btn-student-join"
             onClick={() => navigate('/student/join')}
-            className="text-sm text-slate-500 hover:text-slate-300 transition-colors"
+            className="text-sm text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
           >
             Học sinh? Nhập mã phiên để tham gia →
           </button>
