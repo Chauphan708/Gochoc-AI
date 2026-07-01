@@ -41,6 +41,7 @@ export function StudentStation() {
   const [textAnswers, setTextAnswers] = useState<Record<string, string>>({})
   const [taskTags, setTaskTags] = useState<Record<string, string[]>>({})
   const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({})
+  const [taskResults, setTaskResults] = useState<Record<string, any>>({})
   
   // Timer state (server-synced)
   const [timeRemaining, setTimeRemaining] = useState(0)
@@ -110,6 +111,35 @@ export function StudentStation() {
 
       const dbTasks = allTasks.filter((t: any) => t.station_id === stationId)
       setTasks(dbTasks)
+
+      // Query existing task results to recover state
+      if (isOnline) {
+        const { data: resultsData } = await supabase
+          .from('task_results')
+          .select('*')
+          .eq('group_id', currentStationInfo.groupId)
+        
+        const completedMap: Record<string, boolean> = {}
+        const resultMap: Record<string, any> = {}
+        
+        ;(resultsData ?? []).forEach((res: any) => {
+          const taskObj = dbTasks.find((t: any) => t.id === res.task_id)
+          if (taskObj) {
+            if (taskObj.scoring_mode === 'individual') {
+              if (res.submitted_by === auth.user.id) {
+                completedMap[res.task_id] = true
+                resultMap[res.task_id] = res
+              }
+            } else {
+              completedMap[res.task_id] = true
+              resultMap[res.task_id] = res
+            }
+          }
+        })
+        
+        setCompletedTasks(completedMap)
+        setTaskResults(resultMap)
+      }
     } catch (err: any) {
       alert(err.message)
       navigate('/student/join')
@@ -208,6 +238,37 @@ export function StudentStation() {
     setIsQuickSwitchOpen(false)
     if (group?.id) {
        updateGroupActiveStudent(group.id, id).catch(e => console.error(e))
+
+       // Re-evaluate completed tasks for the newly active student
+       try {
+         const { data: resultsData } = await supabase
+           .from('task_results')
+           .select('*')
+           .eq('group_id', group.id)
+         
+         const completedMap: Record<string, boolean> = {}
+         const resultMap: Record<string, any> = {}
+         
+         ;(resultsData ?? []).forEach((res: any) => {
+           const taskObj = tasks.find((t: any) => t.id === res.task_id)
+           if (taskObj) {
+             if (taskObj.scoring_mode === 'individual') {
+               if (res.submitted_by === id) {
+                 completedMap[res.task_id] = true
+                 resultMap[res.task_id] = res
+               }
+             } else {
+               completedMap[res.task_id] = true
+               resultMap[res.task_id] = res
+             }
+           }
+         })
+         
+         setCompletedTasks(completedMap)
+         setTaskResults(resultMap)
+       } catch (err) {
+         console.error('Failed to switch student tasks state:', err)
+       }
     }
   }
 
@@ -265,8 +326,9 @@ export function StudentStation() {
         setCompletedTasks(prev => ({ ...prev, [task.id]: true }))
         alert("🌐 Thiết bị đang ngoại tuyến. Bài làm của em đã được lưu vào hàng đợi và sẽ tự động nộp khi có mạng trở lại!")
       } else {
-        await submitTask(input)
+        const result = await submitTask(input)
         setCompletedTasks(prev => ({ ...prev, [task.id]: true }))
+        setTaskResults(prev => ({ ...prev, [task.id]: result }))
       }
     } catch (err: any) {
       alert("Nộp bài thất bại: " + err.message)
@@ -403,6 +465,78 @@ export function StudentStation() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Task Internal UI */}
+                  {isCompleted && taskResults[task.id] && (
+                    <div className="mt-4 bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-4 space-y-3">
+                      <div className="flex items-center justify-between border-b border-emerald-500/10 pb-2">
+                        <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Kết quả bài làm
+                        </span>
+                        <span className="text-sm font-bold text-white">
+                          Điểm: <span className="text-emerald-400">{taskResults[task.id].score}</span> / {taskResults[task.id].max_score}
+                        </span>
+                      </div>
+
+                      {/* Display details based on task type */}
+                      {task.type === 'quiz' && (
+                        <div className="space-y-3">
+                          {content.questions?.map((q: any, qIdx: number) => {
+                            const studentAns = taskResults[task.id].answer?.answers?.[qIdx]
+                            const correctAns = q.correctAnswer
+                            const isCorrect = studentAns === correctAns
+                            
+                            return (
+                              <div key={qIdx} className="text-xs space-y-1">
+                                <p className="text-slate-300 font-medium">{qIdx + 1}. {q.question}</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                                  <div className={`p-2 rounded border ${isCorrect ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
+                                    <span className="font-semibold">Đã chọn:</span> {q.options?.[studentAns] ?? 'Chưa chọn'}
+                                    {!isCorrect && <span className="ml-1">(Sai)</span>}
+                                  </div>
+                                  {!isCorrect && (
+                                    <div className="p-2 rounded border bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
+                                      <span className="font-semibold">Đáp án đúng:</span> {q.options?.[correctAns]}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {task.type === 'short_answer' && (
+                        <div className="space-y-2 text-xs">
+                          <div>
+                            <span className="text-slate-400 font-semibold block mb-1">Câu trả lời của em:</span>
+                            <div className="bg-black/30 p-2 rounded text-slate-300 italic">"{taskResults[task.id].answer?.text || ''}"</div>
+                          </div>
+                          {taskResults[task.id].feedback && (
+                            <div>
+                              <span className="text-indigo-400 font-semibold block mb-1">🤖 Nhận xét từ AI Bot:</span>
+                              <div className="bg-indigo-500/5 border border-indigo-500/10 p-2 rounded text-slate-300">{taskResults[task.id].feedback}</div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {task.type === 'photo_upload' && (
+                        <div className="space-y-2 text-xs">
+                          <div>
+                            <span className="text-slate-400 font-semibold block mb-1">Ảnh đã nộp:</span>
+                            <img src={taskResults[task.id].answer?.url} alt="Nộp bài" className="w-full max-h-40 object-cover rounded border border-white/10" />
+                          </div>
+                          {taskResults[task.id].feedback && (
+                            <div>
+                              <span className="text-indigo-400 font-semibold block mb-1">🤖 Nhận xét từ AI Bot:</span>
+                              <div className="bg-indigo-500/5 border border-indigo-500/10 p-2 rounded text-slate-300">{taskResults[task.id].feedback}</div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Task Internal UI */}
                   {!isCompleted && (
