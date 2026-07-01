@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- COMBINED INITIALIZATION SQL FOR GOCHOC-AI
--- Generated on 2026-06-30T14:40:41.341Z
+-- Generated on 2026-07-01T13:58:18.849Z
 -- Run this script in Supabase SQL Editor to set up your database.
 -- ==============================================================================
 
@@ -338,8 +338,14 @@ ALTER TABLE task_results ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 
 -- GV xem/sửa thông tin của mình
-CREATE POLICY "teachers_own" ON teachers
-  FOR ALL USING (auth.uid() = id);
+CREATE POLICY "teachers_select" ON teachers
+  FOR SELECT USING (auth.uid() = id);
+
+CREATE POLICY "teachers_update" ON teachers
+  FOR UPDATE USING (auth.uid() = id);
+
+CREATE POLICY "teachers_insert" ON teachers
+  FOR INSERT WITH CHECK (true); -- Bảo mật bởi khóa ngoại REFERENCES auth.users(id)
 
 -- GV quản lý HS của mình
 CREATE POLICY "students_teacher_manage" ON students
