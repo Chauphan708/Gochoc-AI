@@ -481,3 +481,74 @@ export async function getStudentResults(studentId: string): Promise<TaskResult[]
   if (error) throw new Error(`Lấy kết quả HS thất bại: ${error.message}`)
   return data ?? []
 }
+
+/** GV chấm lại / duyệt bài làm tự luận/ảnh/thực hành */
+export async function gradeTaskResultByTeacher(
+  resultId: string,
+  newScore: number,
+  newFeedback: string
+): Promise<TaskResult> {
+  // 1. Lấy kết quả hiện tại
+  const { data: currentResult, error: fetchErr } = await supabase
+    .from('task_results')
+    .select('*')
+    .eq('id', resultId)
+    .single()
+
+  if (fetchErr || !currentResult) throw new Error('Không tìm thấy bài làm')
+
+  const oldScore = currentResult.score ?? 0
+  const scoreDiff = newScore - oldScore
+
+  // Tính XP dựa trên điểm mới
+  const oldXp = currentResult.xp_earned ?? 0
+  
+  // Lấy task để biết scoring_mode
+  const { data: task } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('id', currentResult.task_id)
+    .single()
+
+  if (!task) throw new Error('Không tìm thấy thông tin nhiệm vụ')
+
+  const newXp = calculateXP(newScore, task.points, task.scoring_mode)
+  const xpDiff = newXp - oldXp
+
+  // 2. Cập nhật task_results
+  const { data: updatedResult, error: updateErr } = await supabase
+    .from('task_results')
+    .update({
+      score: newScore,
+      xp_earned: newXp,
+      feedback: newFeedback,
+    } as any)
+    .eq('id', resultId)
+    .select()
+    .single()
+
+  if (updateErr) throw new Error(`Cập nhật điểm thất bại: ${updateErr.message}`)
+
+  // 3. Cập nhật điểm & XP cho học sinh (submitted_for)
+  const submittedFor = (currentResult.submitted_for || []) as string[]
+  const scoreDistribution = currentResult.score_distribution
+
+  const pointsDiffPerStudent =
+    scoreDistribution === 'equal'
+      ? Math.floor(scoreDiff / submittedFor.length)
+      : scoreDiff
+
+  const xpDiffPerStudent =
+    scoreDistribution === 'equal'
+      ? Math.floor(xpDiff / submittedFor.length)
+      : xpDiff
+
+  await Promise.all(
+    submittedFor.map(async (studentId) => {
+      await addPoints(studentId, pointsDiffPerStudent)
+      await addXP(studentId, xpDiffPerStudent)
+    })
+  )
+
+  return updatedResult
+}

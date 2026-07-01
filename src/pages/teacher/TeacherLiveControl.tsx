@@ -14,6 +14,7 @@ import {
   endSessionFromLive,
   getTimeRemaining,
 } from '@/services/rotationService'
+import { gradeTaskResultByTeacher } from '@/services/taskResultService'
 import type { Session, Station, Task, Message } from '@/types/database'
 
 export function TeacherLiveControl() {
@@ -42,6 +43,13 @@ export function TeacherLiveControl() {
   const [selectedRecipientType, setSelectedRecipientType] = useState<'all_groups' | 'group'>('all_groups')
   const [selectedGroupId, setSelectedGroupId] = useState<string>('')
 
+  // Submissions review states
+  const [activeRightTab, setActiveRightTab] = useState<'chat' | 'submissions'>('chat')
+  const [editingResultId, setEditingResultId] = useState<string | null>(null)
+  const [editScore, setEditScore] = useState<number>(0)
+  const [editFeedback, setEditFeedback] = useState<string>('')
+  const [isSavingGrade, setIsSavingGrade] = useState<boolean>(false)
+
   useEffect(() => {
     fetchInitial()
   }, [sessionId])
@@ -61,10 +69,10 @@ export function TeacherLiveControl() {
       const groups = await getLiveGroupStats(sessionId)
       setLiveGroups(groups || [])
 
-      // Lấy All Task Results cho Phiên để tính %
+      // Lấy All Task Results cho Phiên đầy đủ thông tin
       const { data: results } = await supabase
         .from('task_results')
-        .select('task_id, group_id')
+        .select('*')
         .in('task_id', t.map(x => x.id))
       setTaskResults(results || [])
 
@@ -106,10 +114,13 @@ export function TeacherLiveControl() {
       })
       .subscribe()
 
-    // Theo dõi tiến độ bài làm
+    // Theo dõi tiến độ bài làm và cập nhật kết quả mới nhất
     const trSub = supabase.channel(`task_results_live_${sessionId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'task_results' }, (payload) => {
          setTaskResults(prev => [...prev, payload.new])
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'task_results' }, (payload) => {
+         setTaskResults(prev => prev.map(r => r.id === payload.new.id ? payload.new : r))
       })
       .subscribe()
 
@@ -408,66 +419,247 @@ export function TeacherLiveControl() {
         </div>
       </div>
 
-      {/* ── HỘP THƯ 2 CHIỀU (BROADCAST / DIRECT) ── */}
+      {/* ── HỘP THƯ 2 CHIỀU (BROADCAST / DIRECT) / BÀI LÀM HS ── */}
       <div className="flex-1 bg-[#12141A] flex flex-col h-[50vh] md:h-dvh">
         <div className="p-5 border-b border-white/10 flex flex-col gap-3">
-          <h2 className="font-bold flex items-center gap-2 text-indigo-300"><MessageSquare className="w-5 h-5" /> Trạm Chỉ Huy Lớp</h2>
-          
-          <div className="flex gap-2">
-            <select 
-              value={selectedRecipientType}
-              onChange={(e) => setSelectedRecipientType(e.target.value as any)}
-              className="bg-black/30 border border-white/10 rounded-lg text-sm p-2 text-white outline-none focus:border-indigo-500"
-            >
-              <option value="all_groups">📢 Tất cả nhóm (Broadcast)</option>
-              <option value="group">🎯 Gửi riêng 1 nhóm</option>
-            </select>
-
-            {selectedRecipientType === 'group' && (
-              <select 
-                value={selectedGroupId}
-                onChange={(e) => setSelectedGroupId(e.target.value)}
-                className="flex-1 bg-black/30 border border-white/10 rounded-lg text-sm p-2 text-white outline-none focus:border-indigo-500"
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold flex items-center gap-2 text-indigo-300">
+              <MessageSquare className="w-5 h-5" /> Trạm Chỉ Huy Lớp
+            </h2>
+            <div className="flex bg-black/40 rounded-lg p-0.5 border border-white/10 text-xs">
+              <button 
+                onClick={() => setActiveRightTab('chat')}
+                className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer ${activeRightTab === 'chat' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
               >
-                <option value="">-- Chọn nhóm --</option>
-                {liveGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                💬 Chỉ đạo & Chat
+              </button>
+              <button 
+                onClick={() => setActiveRightTab('submissions')}
+                className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer relative ${activeRightTab === 'submissions' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
+              >
+                📝 Bài làm HS
+                {taskResults.filter(r => r.score === 0 || (tasks.find(t => t.id === r.task_id)?.type !== 'quiz' && r.score === 0)).length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                )}
+              </button>
+            </div>
+          </div>
+          
+          {activeRightTab === 'chat' && (
+            <div className="flex gap-2">
+              <select 
+                value={selectedRecipientType}
+                onChange={(e) => setSelectedRecipientType(e.target.value as any)}
+                className="bg-black/30 border border-white/10 rounded-lg text-sm p-2 text-white outline-none focus:border-indigo-500"
+              >
+                <option value="all_groups">📢 Tất cả nhóm (Broadcast)</option>
+                <option value="group">🎯 Gửi riêng 1 nhóm</option>
               </select>
+
+              {selectedRecipientType === 'group' && (
+                <select 
+                  value={selectedGroupId}
+                  onChange={(e) => setSelectedGroupId(e.target.value)}
+                  className="flex-1 bg-black/30 border border-white/10 rounded-lg text-sm p-2 text-white outline-none focus:border-indigo-500"
+                >
+                  <option value="">-- Chọn nhóm --</option>
+                  {liveGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+              )}
+            </div>
+          )}
+        </div>
+
+        {activeRightTab === 'chat' ? (
+          <>
+            <div className="flex-1 p-5 overflow-y-auto space-y-4">
+              {messages.map(msg => (
+                 <div key={msg.id} className={`flex ${msg.sender_type === 'teacher' ? 'justify-end' : 'justify-start'}`}>
+                   <div className={`max-w-[85%] rounded-xl p-3 text-sm ${
+                     msg.sender_type === 'teacher' 
+                       ? 'bg-indigo-600 text-white rounded-tr-sm' 
+                       : 'bg-white/10 text-slate-200 rounded-tl-sm'
+                   }`}>
+                      <div className="text-[10px] uppercase font-bold mb-1 opacity-70">
+                        {msg.sender_type === 'teacher' ? 'Bạn' : `Nhóm (ID: ${msg.sender_id.substring(0,4)})`}
+                        {msg.recipient_type === 'all_groups' && msg.sender_type === 'teacher' && ' → 📢 Tất cả'}
+                        {msg.recipient_type === 'group' && ' → 🎯 Nhóm riêng'}
+                      </div>
+                      {msg.content}
+                   </div>
+                 </div>
+              ))}
+            </div>
+
+            <div className="p-4 border-t border-white/10 bg-black/20">
+               <form onSubmit={handleSendChat} className="flex gap-2">
+                 <input
+                   value={chatInput}
+                   onChange={e => setChatInput(e.target.value)}
+                   placeholder="Nhập thông báo/chỉ đạo..."
+                   className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 text-sm text-white focus:border-indigo-500 outline-none"
+                 />
+                 <button type="submit" disabled={!chatInput.trim()} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center disabled:opacity-50">
+                   <Send className="w-4 h-4" />
+                 </button>
+               </form>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 p-5 overflow-y-auto space-y-4">
+            <div className="flex justify-between items-center text-xs text-slate-400 mb-2">
+              <span>Danh sách học sinh nộp bài trong phiên</span>
+              <span className="bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded font-mono font-bold">Tổng nộp: {taskResults.length}</span>
+            </div>
+
+            {taskResults.length === 0 ? (
+              <div className="text-center py-10 text-slate-500 italic text-sm">Chưa có học sinh nào nộp bài.</div>
+            ) : (
+              [...taskResults].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()).map(result => {
+                const task = tasks.find(t => t.id === result.task_id)
+                const station = stations.find(s => s.id === task?.station_id)
+                const group = liveGroups.find(g => g.id === result.group_id)
+                if (!task) return null
+
+                const isEditing = editingResultId === result.id
+
+                return (
+                  <div key={result.id} className="bg-black/30 border border-white/5 rounded-xl p-4 space-y-3 relative hover:border-white/10 transition-colors">
+                    {/* Header */}
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                          📍 {station?.name || 'Trạm'} &gt; {task.title}
+                        </span>
+                        <span className="text-xs text-white font-semibold">
+                          Nhóm: {group?.name || 'Chưa rõ'} • Người nộp: {result.submitted_by.substring(0, 5)}
+                        </span>
+                      </div>
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${result.score > 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400 animate-pulse'}`}>
+                        Điểm: {result.score} / {result.max_score}
+                      </span>
+                    </div>
+
+                    {/* Content Detail */}
+                    <div className="text-xs bg-white/5 p-3 rounded-lg border border-white/5 space-y-2">
+                      {task.type === 'quiz' && (
+                        <div className="text-slate-400">Bài thi trắc nghiệm (Tự động chấm)</div>
+                      )}
+                      
+                      {task.type === 'short_answer' && (
+                        <div>
+                          <span className="font-bold text-slate-400 block">Câu trả lời:</span>
+                          <p className="text-slate-200 italic mt-0.5">"{result.answer?.text}"</p>
+                        </div>
+                      )}
+
+                      {task.type === 'photo_upload' && (
+                        <div className="space-y-2">
+                          <span className="font-bold text-slate-400 block">Ảnh đã chụp:</span>
+                          <a href={result.answer?.url} target="_blank" rel="noreferrer" className="block max-w-full">
+                            <img src={result.answer?.url} alt="Nộp bài" className="max-h-32 rounded border border-white/10 object-cover" />
+                          </a>
+                        </div>
+                      )}
+
+                      {task.type === 'practice' && (
+                        <div>
+                          <span className="font-bold text-slate-400 block">Kết quả thực hành:</span>
+                          <p className="text-slate-200 mt-0.5">"{result.answer?.text || 'Đã báo nộp trạm thực hành'}"</p>
+                        </div>
+                      )}
+
+                      {/* Feedback AI */}
+                      {result.feedback && (
+                        <div className="pt-2 border-t border-white/5">
+                          <span className="font-bold text-indigo-300 block">🤖 Nhận xét AI:</span>
+                          <p className="text-slate-300 mt-0.5">{result.feedback}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Teacher Override Grading Area */}
+                    {task.type !== 'quiz' && (
+                      <div className="pt-1">
+                        {!isEditing ? (
+                          <button 
+                            onClick={() => {
+                              setEditingResultId(result.id)
+                              setEditScore(result.score)
+                              setEditFeedback(result.feedback || '')
+                            }}
+                            className="btn btn-ghost btn-sm text-xs text-indigo-400 hover:text-indigo-300 cursor-pointer"
+                          >
+                            📝 Chấm điểm / Duyệt lại
+                          </button>
+                        ) : (
+                          <form 
+                            onSubmit={async (e) => {
+                              e.preventDefault()
+                              setIsSavingGrade(true)
+                              try {
+                                const updated = await gradeTaskResultByTeacher(result.id, editScore, editFeedback)
+                                setTaskResults(prev => prev.map(r => r.id === result.id ? updated : r))
+                                setEditingResultId(null)
+                                alert('Đã lưu kết quả duyệt bài thành công!')
+                              } catch (err: any) {
+                                alert('Chấm điểm thất bại: ' + err.message)
+                              } finally {
+                                setIsSavingGrade(false)
+                              }
+                            }}
+                            className="bg-black/40 border border-white/10 rounded-lg p-3 space-y-3"
+                          >
+                            <div className="grid grid-cols-2 gap-3 items-center">
+                              <div>
+                                <label className="block text-[10px] text-slate-400 font-bold mb-1 uppercase">Điểm (Tối đa {result.max_score}):</label>
+                                <input 
+                                  type="number"
+                                  min="0"
+                                  max={result.max_score}
+                                  value={editScore}
+                                  onChange={e => setEditScore(Math.min(result.max_score, Math.max(0, parseInt(e.target.value) || 0)))}
+                                  className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none w-full"
+                                />
+                              </div>
+                              <div className="flex justify-end gap-2 pt-4">
+                                <button 
+                                  type="button" 
+                                  onClick={() => setEditingResultId(null)}
+                                  className="px-2 py-1 bg-white/5 text-slate-400 text-xs rounded hover:bg-white/10 cursor-pointer"
+                                  disabled={isSavingGrade}
+                                >
+                                  Hủy
+                                </button>
+                                <button 
+                                  type="submit" 
+                                  className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-500 cursor-pointer"
+                                  disabled={isSavingGrade}
+                                >
+                                  {isSavingGrade ? 'Đang lưu...' : 'Lưu lại'}
+                                </button>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] text-slate-400 font-bold mb-1 uppercase">Nhận xét của GV:</label>
+                              <textarea 
+                                value={editFeedback}
+                                onChange={e => setEditFeedback(e.target.value)}
+                                className="bg-white/5 border border-white/10 rounded p-2 text-xs text-white focus:outline-none w-full"
+                                rows={2}
+                                placeholder="Gõ nhận xét khuyến khích hoặc chỉnh sửa của bạn..."
+                              />
+                            </div>
+                          </form>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })
             )}
           </div>
-        </div>
-
-        <div className="flex-1 p-5 overflow-y-auto space-y-4">
-          {messages.map(msg => (
-             <div key={msg.id} className={`flex ${msg.sender_type === 'teacher' ? 'justify-end' : 'justify-start'}`}>
-               <div className={`max-w-[85%] rounded-xl p-3 text-sm ${
-                 msg.sender_type === 'teacher' 
-                   ? 'bg-indigo-600 text-white rounded-tr-sm' 
-                   : 'bg-white/10 text-slate-200 rounded-tl-sm'
-               }`}>
-                  <div className="text-[10px] uppercase font-bold mb-1 opacity-70">
-                    {msg.sender_type === 'teacher' ? 'Bạn' : `Nhóm (ID: ${msg.sender_id.substring(0,4)})`}
-                    {msg.recipient_type === 'all_groups' && msg.sender_type === 'teacher' && ' → 📢 Tất cả'}
-                    {msg.recipient_type === 'group' && ' → 🎯 Nhóm riêng'}
-                  </div>
-                  {msg.content}
-               </div>
-             </div>
-          ))}
-        </div>
-
-        <div className="p-4 border-t border-white/10 bg-black/20">
-           <form onSubmit={handleSendChat} className="flex gap-2">
-             <input
-               value={chatInput}
-               onChange={e => setChatInput(e.target.value)}
-               placeholder="Nhập thông báo/chỉ đạo..."
-               className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 text-sm text-white focus:border-indigo-500 outline-none"
-             />
-             <button type="submit" disabled={!chatInput.trim()} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center disabled:opacity-50">
-               <Send className="w-4 h-4" />
-             </button>
-           </form>
-        </div>
+        )}
       </div>
     </div>
   )
