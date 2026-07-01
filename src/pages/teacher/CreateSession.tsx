@@ -50,6 +50,7 @@ interface TaskDraft {
   type: 'quiz' | 'short_answer' | 'photo_upload' | 'practice'
   points: number
   scoring_mode: 'individual' | 'group_equal' | 'group_leader_tag'
+  grading_mode: 'auto' | 'teacher'
 }
 
 interface StationDraft {
@@ -175,6 +176,7 @@ export function CreateSession() {
             orderNum: tIdx + 1,
             points: t.points,
             scoringMode: t.scoring_mode,
+            gradingMode: t.grading_mode,
           })
         })
       })
@@ -219,7 +221,8 @@ export function CreateSession() {
       title: '',
       type: 'quiz',
       points: 10,
-      scoring_mode: 'individual'
+      scoring_mode: 'individual',
+      grading_mode: 'auto'
     })
     setStations(updated)
   }
@@ -709,6 +712,27 @@ export function CreateSession() {
                           </label>
                         </div>
                       </div>
+
+                      {/* Grading Mode — only for non-quiz types */}
+                      {(task.type === 'short_answer' || task.type === 'photo_upload' || task.type === 'practice') && (
+                        <div className="mt-3">
+                          <label className="block text-xs font-medium text-amber-400 mb-2">
+                            🎯 Cách chấm điểm
+                          </label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <label className={`flex flex-col p-2 rounded-lg border cursor-pointer ${task.grading_mode === 'auto' ? 'bg-cyan-500/20 border-cyan-500/50' : 'bg-transparent border-white/10 hover:border-white/20'}`}>
+                              <input type="radio" className="sr-only" checked={task.grading_mode === 'auto'} onChange={() => updateTask(activeStationTab, tIndex, 'grading_mode' as any, 'auto')} />
+                              <span className="text-sm font-medium text-slate-200">🤖 AI tự chấm</span>
+                              <span className="text-[10px] text-slate-400 mt-1">Hệ thống AI tự động chấm và cho điểm ngay</span>
+                            </label>
+                            <label className={`flex flex-col p-2 rounded-lg border cursor-pointer ${task.grading_mode === 'teacher' ? 'bg-amber-500/20 border-amber-500/50' : 'bg-transparent border-white/10 hover:border-white/20'}`}>
+                              <input type="radio" className="sr-only" checked={task.grading_mode === 'teacher'} onChange={() => updateTask(activeStationTab, tIndex, 'grading_mode' as any, 'teacher')} />
+                              <span className="text-sm font-medium text-slate-200">👨‍🏫 GV chấm</span>
+                              <span className="text-[10px] text-slate-400 mt-1">Câu hỏi mở — chờ GV duyệt và quyết định điểm</span>
+                            </label>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
 

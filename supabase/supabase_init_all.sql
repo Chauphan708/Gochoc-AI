@@ -143,6 +143,9 @@ CREATE TABLE tasks (
     'individual', 'group_equal', 'group_leader_tag'
   )) DEFAULT 'individual',
 
+  -- CHẾ ĐỘ CHẤM ĐIỂM: auto = AI tự chấm, teacher = chờ GV chấm
+  grading_mode TEXT CHECK (grading_mode IN ('auto', 'teacher')) DEFAULT 'auto',
+
   require_individual_login BOOLEAN DEFAULT FALSE
 );
 
@@ -286,6 +289,8 @@ CREATE TABLE task_results (
   score_distribution TEXT CHECK (score_distribution IN (
     'full', 'equal', 'weighted'
   )) DEFAULT 'full',
+  -- TRẠNG THÁI CHẤM: graded = đã chấm, pending_teacher = chờ GV chấm
+  grading_status TEXT CHECK (grading_status IN ('graded', 'pending_teacher')) DEFAULT 'graded',
   completed_at TIMESTAMPTZ DEFAULT now()
 );
 

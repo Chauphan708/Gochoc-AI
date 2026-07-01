@@ -65,8 +65,11 @@ export async function submitTask(input: SubmitTaskInput): Promise<TaskResult> {
       scoreDistribution = 'full'
   }
 
-  // 2. Chấm điểm tự động (cho quiz và short_answer)
-  const { score, maxScore, feedback } = await autoGrade(task, answer)
+  // 2. Chấm điểm tự động hoặc chờ GV chấm
+  const isPendingTeacher = task.grading_mode === 'teacher' && task.type !== 'quiz'
+  const { score, maxScore, feedback } = isPendingTeacher
+    ? { score: 0, maxScore: task.points, feedback: '⏳ Bài đã nộp — đang chờ GV chấm điểm.' }
+    : await autoGrade(task, answer)
 
   // 3. Tính XP
   const xpEarned = calculateXP(score, maxScore, task.scoring_mode)
@@ -85,29 +88,32 @@ export async function submitTask(input: SubmitTaskInput): Promise<TaskResult> {
       xp_earned: xpEarned,
       feedback,
       score_distribution: scoreDistribution,
+      grading_status: isPendingTeacher ? 'pending_teacher' : 'graded',
     } as any)
     .select()
     .single()
 
   if (error) throw new Error(`Nộp bài thất bại: ${error.message}`)
 
-  // 5. Cộng điểm và XP cho từng HS
-  const pointsPerStudent =
-    scoreDistribution === 'equal'
-      ? Math.floor(score / submittedFor.length)
-      : score
+  // 5. Cộng điểm và XP cho từng HS (bỏ qua nếu chờ GV chấm)
+  if (!isPendingTeacher) {
+    const pointsPerStudent =
+      scoreDistribution === 'equal'
+        ? Math.floor(score / submittedFor.length)
+        : score
 
-  const xpPerStudent =
-    scoreDistribution === 'equal'
-      ? Math.floor(xpEarned / submittedFor.length)
-      : xpEarned
+    const xpPerStudent =
+      scoreDistribution === 'equal'
+        ? Math.floor(xpEarned / submittedFor.length)
+        : xpEarned
 
-  await Promise.all(
-    submittedFor.map(async (studentId) => {
-      await addPoints(studentId, pointsPerStudent)
-      await addXP(studentId, xpPerStudent)
-    })
-  )
+    await Promise.all(
+      submittedFor.map(async (studentId) => {
+        await addPoints(studentId, pointsPerStudent)
+        await addXP(studentId, xpPerStudent)
+      })
+    )
+  }
 
   // 6. Cập nhật số tương tác (soft fail)
   try {
@@ -522,6 +528,7 @@ export async function gradeTaskResultByTeacher(
       score: newScore,
       xp_earned: newXp,
       feedback: newFeedback,
+      grading_status: 'graded',
     } as any)
     .eq('id', resultId)
     .select()

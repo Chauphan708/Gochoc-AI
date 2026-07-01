@@ -468,14 +468,27 @@ export function StudentStation() {
 
                   {/* Task Internal UI */}
                   {isCompleted && taskResults[task.id] && (
-                    <div className="mt-4 bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-4 space-y-3">
-                      <div className="flex items-center justify-between border-b border-emerald-500/10 pb-2">
-                        <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Kết quả bài làm
-                        </span>
-                        <span className="text-sm font-bold text-white">
-                          Điểm: <span className="text-emerald-400">{taskResults[task.id].score}</span> / {taskResults[task.id].max_score}
-                        </span>
+                    <div className={`mt-4 ${taskResults[task.id].grading_status === 'pending_teacher' ? 'bg-amber-500/5 border-amber-500/20' : 'bg-emerald-500/5 border-emerald-500/20'} border rounded-lg p-4 space-y-3`}>
+                      <div className={`flex items-center justify-between border-b ${taskResults[task.id].grading_status === 'pending_teacher' ? 'border-amber-500/10' : 'border-emerald-500/10'} pb-2`}>
+                        {taskResults[task.id].grading_status === 'pending_teacher' ? (
+                          <>
+                            <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                              ⏳ Đang chờ GV chấm điểm
+                            </span>
+                            <span className="text-sm font-bold text-amber-300">
+                              Chờ duyệt
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Kết quả bài làm
+                            </span>
+                            <span className="text-sm font-bold text-white">
+                              Điểm: <span className="text-emerald-400">{taskResults[task.id].score}</span> / {taskResults[task.id].max_score}
+                            </span>
+                          </>
+                        )}
                       </div>
 
                       {/* Display details based on task type */}

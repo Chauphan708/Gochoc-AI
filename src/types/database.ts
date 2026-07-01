@@ -19,6 +19,7 @@ export type RoleAssignment = 'teacher_assign' | 'student_nominate'
 export type DeviceMode = 'individual' | 'shared'
 export type TaskType = 'quiz' | 'short_answer' | 'photo_upload' | 'practice' | 'cipher'
 export type ScoringMode = 'individual' | 'group_equal' | 'group_leader_tag'
+export type GradingMode = 'auto' | 'teacher'
 export type ScoreDistribution = 'full' | 'equal' | 'weighted'
 export type GroupRole = 'member' | 'leader' | 'secretary'
 export type CollaboratorRole = 'co_teacher' | 'assistant' | 'observer'
@@ -112,6 +113,7 @@ export interface Task {
   points: number
   time_limit_minutes: number | null
   scoring_mode: ScoringMode
+  grading_mode: GradingMode
   require_individual_login: boolean
 }
 

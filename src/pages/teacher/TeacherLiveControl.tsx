@@ -535,9 +535,15 @@ export function TeacherLiveControl() {
                           Nhóm: {group?.name || 'Chưa rõ'} • Người nộp: {result.submitted_by.substring(0, 5)}
                         </span>
                       </div>
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${result.score > 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400 animate-pulse'}`}>
-                        Điểm: {result.score} / {result.max_score}
-                      </span>
+                      {result.grading_status === 'pending_teacher' ? (
+                        <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-amber-500/20 text-amber-400 animate-pulse border border-amber-500/30">
+                          ⏳ Chờ GV chấm
+                        </span>
+                      ) : (
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${result.score > 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-500/10 text-slate-400'}`}>
+                          Điểm: {result.score} / {result.max_score}
+                        </span>
+                      )}
                     </div>
 
                     {/* Content Detail */}

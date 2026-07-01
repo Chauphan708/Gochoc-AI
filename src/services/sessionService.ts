@@ -232,6 +232,7 @@ export interface CreateTaskInput {
   orderNum: number
   points?: number
   scoringMode?: ScoringMode
+  gradingMode?: 'auto' | 'teacher'
   timeLimitMinutes?: number
   requireIndividualLogin?: boolean
 }
@@ -248,6 +249,7 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
       order_num: input.orderNum,
       points: input.points ?? 10,
       scoring_mode: input.scoringMode ?? 'individual',
+      grading_mode: input.gradingMode ?? 'auto',
       time_limit_minutes: input.timeLimitMinutes ?? null,
       require_individual_login: input.requireIndividualLogin ?? false,
     })
@@ -270,6 +272,7 @@ export async function createTasksBatch(
     order_num: t.orderNum,
     points: t.points ?? 10,
     scoring_mode: t.scoringMode ?? 'individual',
+    grading_mode: t.gradingMode ?? 'auto',
     time_limit_minutes: t.timeLimitMinutes ?? null,
     require_individual_login: t.requireIndividualLogin ?? false,
   }))
