@@ -17,10 +17,11 @@ import {
   ArrowRight,
   Loader2,
   Play,
-  Zap
+  Zap,
+  Trash2
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import { getTeacherSessions, startSession } from '@/services/sessionService'
+import { getTeacherSessions, startSession, endSession, deleteSession } from '@/services/sessionService'
 import { useAuthStore } from '@/stores/authStore'
 import type { Session } from '@/types/database'
 
@@ -57,14 +58,34 @@ export function TeacherDashboard() {
     }
   }
 
-  const handleStartSession = async (e: React.MouseEvent, sessionId: string) => {
-    e.stopPropagation()
+  const handleStartSession = async (sessionId: string) => {
     try {
       await startSession(sessionId)
-      navigate(`/teacher/live/${sessionId}`)
-    } catch(err) {
-      console.error(err)
-      alert('Không thể bắt đầu phiên.')
+      await loadSessions()
+    } catch (error: any) {
+      alert(error.message)
+    }
+  }
+
+  const handleEndSession = async (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm('Bạn có chắc chắn muốn kết thúc phiên học này?')) return;
+    try {
+      await endSession(sessionId)
+      await loadSessions()
+    } catch (error: any) {
+      alert(error.message)
+    }
+  }
+
+  const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm('Bạn có chắc chắn muốn xóa phiên học này? Hành động này không thể hoàn tác.')) return;
+    try {
+      await deleteSession(sessionId)
+      await loadSessions()
+    } catch (error: any) {
+      alert(error.message)
     }
   }
 
@@ -183,7 +204,15 @@ export function TeacherDashboard() {
               <div
                 key={session.id}
                 className="glass-card p-4 flex items-center justify-between cursor-pointer group"
-                onClick={() => navigate(`/teacher/session/${session.id}`)}
+                onClick={() => {
+                  if (session.status === 'completed' || session.status === 'ended') {
+                    navigate(`/teacher/report/${session.id}`);
+                  } else if (session.status === 'active') {
+                    navigate(`/teacher/live/${session.id}`);
+                  } else {
+                    navigate(`/lobby/${session.join_code}`);
+                  }
+                }}
               >
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
@@ -208,44 +237,60 @@ export function TeacherDashboard() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <span
                     className={`badge ${
-                      session.status === 'completed'
+                      session.status === 'completed' || session.status === 'ended'
                         ? 'badge-accent'
                         : session.status === 'active'
                         ? 'badge-primary'
                         : 'badge-warning'
                     }`}
                   >
-                    {session.status === 'completed' ? 'Hoàn thành' : session.status === 'active' ? 'Đang chạy' : 'Sảnh chờ'}
+                    {session.status === 'completed' || session.status === 'ended' ? 'Hoàn thành' : session.status === 'active' ? 'Đang chạy' : 'Sảnh chờ'}
                   </span>
                   
-                  {session.status !== 'completed' && (
+                  {session.status === 'active' && (
                     <>
-                      {session.status === 'active' ? (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/teacher/live/${session.id}`);
-                          }}
-                          className="btn btn-primary btn-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <Zap className="w-3 h-3" /> Điều khiển
-                        </button>
-                      ) : (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/lobby/${session.join_code}`);
-                          }}
-                          className="btn btn-primary btn-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <Users className="w-3 h-3" /> Vào Sảnh
-                        </button>
-                      )}
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/teacher/live/${session.id}`);
+                        }}
+                        className="btn btn-primary btn-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Điều khiển"
+                      >
+                        <Zap className="w-3 h-3" />
+                      </button>
+                      <button 
+                        onClick={(e) => handleEndSession(session.id, e)}
+                        className="btn btn-ghost btn-sm text-rose-400 hover:bg-rose-500/20 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Kết thúc"
+                      >
+                        Kết thúc
+                      </button>
                     </>
                   )}
+
+                  {(session.status === 'lobby' || session.status === 'draft') && (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/lobby/${session.join_code}`);
+                      }}
+                      className="btn btn-primary btn-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Users className="w-3 h-3" /> Vào Sảnh
+                    </button>
+                  )}
+
+                  <button 
+                    onClick={(e) => handleDeleteSession(session.id, e)}
+                    className="btn btn-ghost btn-sm text-slate-400 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity px-2"
+                    title="Xóa phiên"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             ))}

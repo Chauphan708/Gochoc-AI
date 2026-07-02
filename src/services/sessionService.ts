@@ -166,6 +166,16 @@ export async function endSession(sessionId: string): Promise<void> {
   if (error) throw new Error(`Kết thúc phiên thất bại: ${error.message}`)
 }
 
+/** Xóa phiên học */
+export async function deleteSession(sessionId: string): Promise<void> {
+  const { error } = await supabase
+    .from('sessions')
+    .delete()
+    .eq('id', sessionId)
+
+  if (error) throw new Error(`Xóa phiên thất bại: ${error.message}`)
+}
+
 // ─── GÓC / TRẠM ───────────────────────────
 
 export interface CreateStationInput {
