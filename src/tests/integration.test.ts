@@ -77,7 +77,7 @@ describe('GóiHọc AI - Kịch Bản Kiểm Thử Tích Hợp (Teacher & Studen
         questions: [{ correctAnswer: 1 }]
       },
       order_num: 1,
-      points: 10,
+      xp_reward: 10,
       scoring_mode: 'individual',
       require_individual_login: false
     }
@@ -102,7 +102,7 @@ describe('GóiHọc AI - Kịch Bản Kiểm Thử Tích Hợp (Teacher & Studen
       type: 'photo_upload',
       content: { question: 'Chụp ảnh ống nghiệm' },
       order_num: 2,
-      points: 15,
+      xp_reward: 15,
       scoring_mode: 'group_equal', // Chế độ nhóm chia đều
       require_individual_login: false
     }

@@ -30,7 +30,7 @@ function buildSystemPrompt(
   hintsUsed: number
 ): string {
   const tasksDescription = tasks
-    .map((t, i) => `${i + 1}. ${t.title} (${t.type}, ${t.points} điểm)`)
+    .map((t, i) => `${i + 1}. ${t.title} (${t.type}, thưởng ${t.xp_reward} XP)`)
     .join('\n')
 
   const personaMap: Record<string, string> = {

@@ -479,7 +479,9 @@ export function StudentStation() {
                       <div>
                         <h3 className="text-white font-medium">{task.title}</h3>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="badge badge-primary text-xs">{task.points} điểm</span>
+                          {task.xp_reward > 0 && (
+                            <span className="badge badge-primary text-xs">Thưởng: {task.xp_reward} XP</span>
+                          )}
                           <span className="badge bg-slate-500/20 text-slate-300 text-[10px]">
                             {task.scoring_mode === 'individual' ? 'Cá nhân' : task.scoring_mode === 'group_equal' ? 'Nhóm chung' : 'Nhóm trưởng nộp'}
                           </span>

@@ -36,7 +36,7 @@ describe('taskResultService.ts tests', () => {
         question: 'Hãy mô tả quá trình quang hợp ở thực vật'
       },
       order_num: 1,
-      points: 10,
+      xp_reward: 10,
       scoring_mode: 'individual',
       require_individual_login: false
     }
@@ -91,7 +91,7 @@ describe('taskResultService.ts tests', () => {
         question: 'Chụp ảnh ống nghiệm sau phản ứng'
       },
       order_num: 2,
-      points: 15,
+      xp_reward: 15,
       scoring_mode: 'individual',
       require_individual_login: false
     }

@@ -48,7 +48,7 @@ interface TaskDraft {
   id: string
   title: string
   type: 'quiz' | 'short_answer' | 'photo_upload' | 'practice'
-  points: number
+  xp_reward: number
   scoring_mode: 'individual' | 'group_equal' | 'group_leader_tag'
   grading_mode: 'auto' | 'teacher'
 }
@@ -174,7 +174,7 @@ export function CreateSession() {
             type: t.type,
             content: {}, // Default empty content for now
             orderNum: tIdx + 1,
-            points: t.points,
+            xp_reward: t.xp_reward,
             scoringMode: t.scoring_mode,
             gradingMode: t.grading_mode,
           })
@@ -220,7 +220,7 @@ export function CreateSession() {
       id: Math.random().toString(),
       title: '',
       type: 'quiz',
-      points: 10,
+      xp_reward: 10,
       scoring_mode: 'individual',
       grading_mode: 'auto'
     })
@@ -678,12 +678,12 @@ export function CreateSession() {
                           </select>
                         </div>
                         <div className="sm:col-span-6">
-                          <label className="block text-xs font-medium text-slate-400 mb-1">Điểm số</label>
+                          <label className="block text-xs font-medium text-slate-400 mb-1">Phần thưởng (XP)</label>
                           <input 
                             type="number" 
                             className="input text-sm py-2" 
-                            value={task.points}
-                            onChange={(e) => updateTask(activeStationTab, tIndex, 'points', parseInt(e.target.value) || 0)}
+                            value={task.xp_reward}
+                            onChange={(e) => updateTask(activeStationTab, tIndex, 'xp_reward', parseInt(e.target.value) || 0)}
                           />
                         </div>
                       </div>
@@ -692,18 +692,18 @@ export function CreateSession() {
                       <div>
                         <label className="block text-xs font-medium text-emerald-400 mb-2">
                           <BarChart3 className="w-3 h-3 inline mr-1" />
-                          Cách tính điểm (Scoring Mode)
+                          Cách phân bổ phần thưởng
                         </label>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           <label className={`flex flex-col p-2 rounded-lg border cursor-pointer ${task.scoring_mode === 'individual' ? 'bg-indigo-500/20 border-indigo-500/50' : 'bg-transparent border-white/10 hover:border-white/20'}`}>
                             <input type="radio" className="sr-only" checked={task.scoring_mode === 'individual'} onChange={() => updateTask(activeStationTab, tIndex, 'scoring_mode', 'individual')} />
                             <span className="text-sm font-medium text-slate-200">👤 Cá nhân</span>
-                            <span className="text-[10px] text-slate-400 mt-1">Mỗi HS tự làm, điểm cấu hình riêng</span>
+                            <span className="text-[10px] text-slate-400 mt-1">Mỗi HS tự làm, nhận XP riêng</span>
                           </label>
                           <label className={`flex flex-col p-2 rounded-lg border cursor-pointer ${task.scoring_mode === 'group_equal' ? 'bg-emerald-500/20 border-emerald-500/50' : 'bg-transparent border-white/10 hover:border-white/20'}`}>
                             <input type="radio" className="sr-only" checked={task.scoring_mode === 'group_equal'} onChange={() => updateTask(activeStationTab, tIndex, 'scoring_mode', 'group_equal')} />
                             <span className="text-sm font-medium text-slate-200">👥 Nhóm chia đều</span>
-                            <span className="text-[10px] text-slate-400 mt-1">1 HS nộp, cả nhóm được điểm</span>
+                            <span className="text-[10px] text-slate-400 mt-1">1 HS nộp, cả nhóm được XP</span>
                           </label>
                           <label className={`flex flex-col p-2 rounded-lg border cursor-pointer ${task.scoring_mode === 'group_leader_tag' ? 'bg-amber-500/20 border-amber-500/50' : 'bg-transparent border-white/10 hover:border-white/20'}`}>
                             <input type="radio" className="sr-only" checked={task.scoring_mode === 'group_leader_tag'} onChange={() => updateTask(activeStationTab, tIndex, 'scoring_mode', 'group_leader_tag')} />
@@ -717,18 +717,18 @@ export function CreateSession() {
                       {(task.type === 'short_answer' || task.type === 'photo_upload' || task.type === 'practice') && (
                         <div className="mt-3">
                           <label className="block text-xs font-medium text-amber-400 mb-2">
-                            🎯 Cách chấm điểm
+                            🎯 Cách duyệt bài
                           </label>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <label className={`flex flex-col p-2 rounded-lg border cursor-pointer ${task.grading_mode === 'auto' ? 'bg-cyan-500/20 border-cyan-500/50' : 'bg-transparent border-white/10 hover:border-white/20'}`}>
                               <input type="radio" className="sr-only" checked={task.grading_mode === 'auto'} onChange={() => updateTask(activeStationTab, tIndex, 'grading_mode' as any, 'auto')} />
-                              <span className="text-sm font-medium text-slate-200">🤖 AI tự chấm</span>
-                              <span className="text-[10px] text-slate-400 mt-1">Hệ thống AI tự động chấm và cho điểm ngay</span>
+                              <span className="text-sm font-medium text-slate-200">🤖 AI tự duyệt</span>
+                              <span className="text-[10px] text-slate-400 mt-1">AI tự duyệt và quyết định Đạt/Chưa đạt</span>
                             </label>
                             <label className={`flex flex-col p-2 rounded-lg border cursor-pointer ${task.grading_mode === 'teacher' ? 'bg-amber-500/20 border-amber-500/50' : 'bg-transparent border-white/10 hover:border-white/20'}`}>
                               <input type="radio" className="sr-only" checked={task.grading_mode === 'teacher'} onChange={() => updateTask(activeStationTab, tIndex, 'grading_mode' as any, 'teacher')} />
-                              <span className="text-sm font-medium text-slate-200">👨‍🏫 GV chấm</span>
-                              <span className="text-[10px] text-slate-400 mt-1">Câu hỏi mở — chờ GV duyệt và quyết định điểm</span>
+                              <span className="text-sm font-medium text-slate-200">👨‍🏫 GV duyệt</span>
+                              <span className="text-[10px] text-slate-400 mt-1">Câu hỏi mở — chờ GV duyệt Đạt/Chưa đạt</span>
                             </label>
                           </div>
                         </div>

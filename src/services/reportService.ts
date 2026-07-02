@@ -12,7 +12,6 @@ export interface StudentReportItem {
   groupName: string
   role: string
   tasksCompleted: number
-  pointsEarned: number
   xpEarned: number
 }
 
@@ -21,7 +20,7 @@ export interface GroupReportItem {
   groupName: string
   membersCount: number
   tasksCompleted: number
-  pointsEarned: number
+  xpEarned: number
 }
 
 export interface SessionReportData {
@@ -56,7 +55,7 @@ export async function getSessionReport(sessionId: string): Promise<SessionReport
   if (stationIds.length > 0) {
     const { data: tasksData } = await supabase
       .from('tasks')
-      .select('id, title, points, scoring_mode')
+      .select('id, title, xp_reward, scoring_mode')
       .in('station_id', stationIds)
     tasks = tasksData ?? []
   }
@@ -82,7 +81,7 @@ export async function getSessionReport(sessionId: string): Promise<SessionReport
   if (taskIds.length > 0) {
     const { data: results } = await supabase
       .from('task_results')
-      .select('id, task_id, group_id, submitted_by, points_awarded, tagged_student_ids')
+      .select('id, task_id, group_id, submitted_by, xp_earned, tagged_student_ids')
       .in('task_id', taskIds)
     taskResults = results ?? []
   }
@@ -91,14 +90,14 @@ export async function getSessionReport(sessionId: string): Promise<SessionReport
   const groupReports: GroupReportItem[] = groupList.map(g => {
     // Task results completed by this group
     const completedResults = taskResults.filter(r => r.group_id === g.id)
-    const pointsSum = completedResults.reduce((sum, r) => sum + (r.points_awarded || 0), 0)
+    const xpSum = completedResults.reduce((sum, r) => sum + (r.xp_earned || 0), 0)
 
     return {
       groupId: g.id,
       groupName: g.name,
       membersCount: g.group_members?.length || 0,
       tasksCompleted: completedResults.length,
-      pointsEarned: pointsSum
+      xpEarned: xpSum
     }
   })
 
@@ -130,10 +129,9 @@ export async function getSessionReport(sessionId: string): Promise<SessionReport
         return false
       })
 
-      const studentPoints = relevantResults.reduce((sum, r) => sum + (r.points_awarded || 0), 0)
-      // Standard XP is equal to points earned plus dynamic role bonus
+      const studentXp = relevantResults.reduce((sum, r) => sum + (r.xp_earned || 0), 0)
       const roleBonus = m.role === 'leader' ? 20 : m.role === 'secretary' ? 10 : 0
-      const xpEarned = studentPoints + roleBonus
+      const xpEarned = studentXp + roleBonus
 
       studentReports.push({
         studentId: m.student_id,
@@ -142,7 +140,6 @@ export async function getSessionReport(sessionId: string): Promise<SessionReport
         groupName: g.name,
         role: m.role === 'leader' ? 'Nhóm trưởng' : m.role === 'secretary' ? 'Thư ký' : 'Thành viên',
         tasksCompleted: relevantResults.length,
-        pointsEarned: studentPoints,
         xpEarned
       })
     })
@@ -169,7 +166,6 @@ export function exportToCSV(reportData: SessionReportData): void {
     'Nhóm',
     'Vai trò',
     'Nhiệm vụ hoàn thành',
-    'Điểm số',
     'XP nhận được'
   ]
 
@@ -179,28 +175,25 @@ export function exportToCSV(reportData: SessionReportData): void {
     s.groupName,
     s.role,
     s.tasksCompleted.toString(),
-    s.pointsEarned.toString(),
     s.xpEarned.toString()
   ])
 
   // Include group reports as a separate section in the CSV
-  const groupHeaders = ['', '', '', '', '', '', '']
-  const groupSectionTitle = ['BÁO CÁO TIẾN ĐỘ NHÓM', '', '', '', '', '', '']
-  const groupHeadersActual = ['Tên nhóm', 'Số thành viên', 'Nhiệm vụ hoàn thành', 'Tổng điểm nhóm', '', '', '']
+  const groupHeaders = ['', '', '', '', '']
+  const groupSectionTitle = ['BÁO CÁO TIẾN ĐỘ NHÓM', '', '', '', '']
+  const groupHeadersActual = ['Tên nhóm', 'Số thành viên', 'Nhiệm vụ hoàn thành', 'Tổng XP nhóm', '']
   const groupRows = reportData.groups.map(g => [
     g.groupName,
     g.membersCount.toString(),
     g.tasksCompleted.toString(),
-    g.pointsEarned.toString(),
-    '',
-    '',
+    g.xpEarned.toString(),
     ''
   ])
 
   const csvContent = [
-    [`BÁO CÁO PHIÊN HỌC: ${reportData.sessionTitle.toUpperCase()}`, '', '', '', '', '', ''],
-    [`Môn học: ${reportData.subject}`, '', '', '', '', '', ''],
-    [`Ngày dạy: ${reportData.date}`, '', '', '', '', '', ''],
+    [`BÁO CÁO PHIÊN HỌC: ${reportData.sessionTitle.toUpperCase()}`, '', '', '', ''],
+    [`Môn học: ${reportData.subject}`, '', '', '', ''],
+    [`Ngày dạy: ${reportData.date}`, '', '', '', ''],
     [],
     headers,
     ...rows,

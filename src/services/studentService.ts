@@ -51,7 +51,6 @@ export async function createStudent(input: {
       gender: input.gender ?? null,
       class_name: input.className ?? null,
       total_xp: 0,
-      total_points: 0,
       badges: [],
       total_sessions: 0,
       total_interactions: 0,
@@ -169,7 +168,6 @@ export async function importStudentsFromCSV(
     gender: normalizeGender(row.gender),
     class_name: row.class ?? className ?? null,
     total_xp: 0,
-    total_points: 0,
     badges: [] as never[],
     total_sessions: 0,
     total_interactions: 0,
@@ -235,18 +233,4 @@ export async function addXP(studentId: string, xp: number): Promise<void> {
     .eq('id', studentId)
 }
 
-/** Cộng điểm cho HS */
-export async function addPoints(studentId: string, points: number): Promise<void> {
-  const { data: student } = await supabase
-    .from('students')
-    .select('total_points')
-    .eq('id', studentId)
-    .single()
 
-  if (!student) return
-
-  await supabase
-    .from('students')
-    .update({ total_points: (student as any).total_points + points } as any)
-    .eq('id', studentId)
-}

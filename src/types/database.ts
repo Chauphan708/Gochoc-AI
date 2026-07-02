@@ -50,7 +50,6 @@ export interface Student {
   class_name: string | null
   teacher_id: string | null
   total_xp: number
-  total_points: number
   badges: Json
   total_sessions: number
   total_interactions: number
@@ -110,7 +109,7 @@ export interface Task {
   type: TaskType
   content: Json
   order_num: number
-  points: number
+  xp_reward: number
   time_limit_minutes: number | null
   scoring_mode: ScoringMode
   grading_mode: GradingMode
@@ -189,12 +188,11 @@ export interface TaskResult {
   submitted_by: string | null
   submitted_for: string[]
   answer: Json | null
-  score: number | null
-  max_score: number | null
-  hints_used: number
   xp_earned: number
+  hints_used: number
   feedback: string | null
   score_distribution: ScoreDistribution
+  grading_status: 'graded' | 'pending_teacher' | 'rejected'
   completed_at: string
 }
 

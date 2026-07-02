@@ -230,7 +230,7 @@ export interface CreateTaskInput {
   type: TaskType
   content: Json
   orderNum: number
-  points?: number
+  xp_reward?: number
   scoringMode?: ScoringMode
   gradingMode?: 'auto' | 'teacher'
   timeLimitMinutes?: number
@@ -247,7 +247,7 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
       type: input.type,
       content: input.content,
       order_num: input.orderNum,
-      points: input.points ?? 10,
+      xp_reward: input.xp_reward ?? 10,
       scoring_mode: input.scoringMode ?? 'individual',
       grading_mode: input.gradingMode ?? 'auto',
       time_limit_minutes: input.timeLimitMinutes ?? null,
@@ -270,7 +270,7 @@ export async function createTasksBatch(
     type: t.type,
     content: t.content,
     order_num: t.orderNum,
-    points: t.points ?? 10,
+    xp_reward: t.xp_reward ?? 10,
     scoring_mode: t.scoringMode ?? 'individual',
     grading_mode: t.gradingMode ?? 'auto',
     time_limit_minutes: t.timeLimitMinutes ?? null,
@@ -724,7 +724,7 @@ export async function getGroupMembers(groupId: string) {
     .from('group_members')
     .select(`
       id, student_id, role,
-      student:students (id, display_name, avatar_url, class_name, total_xp, total_points, streak_days)
+      student:students (id, display_name, avatar_url, class_name, total_xp, streak_days)
     `)
     .eq('group_id', groupId)
 

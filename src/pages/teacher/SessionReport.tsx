@@ -145,7 +145,7 @@ export function SessionReport() {
                     <h4 className="font-bold text-white text-sm flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-indigo-500" /> {grp.groupName}
                     </h4>
-                    <span className="text-xs text-indigo-300 font-semibold">{grp.pointsEarned} Pts</span>
+                    <span className="text-xs text-emerald-400 font-semibold">{grp.xpEarned} XP</span>
                   </div>
                   <div className="flex justify-between items-center text-xs text-slate-400 mb-3">
                     <span>Thành viên: {grp.membersCount}</span>

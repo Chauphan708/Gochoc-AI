@@ -7,7 +7,7 @@
    ═══════════════════════════════════════ */
 
 import { supabase } from '@/lib/supabase'
-import { addXP, addPoints } from './studentService'
+import { addXP } from './studentService'
 import type { TaskResult, Task, Json } from '@/types/database'
 
 // ─── NỘP BÀI ───────────────────────────────
@@ -67,12 +67,12 @@ export async function submitTask(input: SubmitTaskInput): Promise<TaskResult> {
 
   // 2. Chấm điểm tự động hoặc chờ GV chấm
   const isPendingTeacher = task.grading_mode === 'teacher' && task.type !== 'quiz'
-  const { score, maxScore, feedback } = isPendingTeacher
-    ? { score: 0, maxScore: task.points, feedback: '⏳ Bài đã nộp — đang chờ GV chấm điểm.' }
+  const { isPassed, feedback } = isPendingTeacher
+    ? { isPassed: false, feedback: '⏳ Bài đã nộp — đang chờ GV chấm điểm.' }
     : await autoGrade(task, answer)
 
   // 3. Tính XP
-  const xpEarned = calculateXP(score, maxScore, task.scoring_mode)
+  const xpEarned = calculateXP(isPassed, task.xp_reward, task.scoring_mode)
 
   // 4. Lưu kết quả
   const { data: result, error } = await supabase
@@ -83,33 +83,26 @@ export async function submitTask(input: SubmitTaskInput): Promise<TaskResult> {
       submitted_by: submittedBy,
       submitted_for: submittedFor,
       answer,
-      score,
-      max_score: maxScore,
       xp_earned: xpEarned,
       feedback,
       score_distribution: scoreDistribution,
-      grading_status: isPendingTeacher ? 'pending_teacher' : 'graded',
+      grading_status: isPendingTeacher ? 'pending_teacher' : (isPassed ? 'graded' : 'rejected'),
     } as any)
     .select()
     .single()
 
   if (error) throw new Error(`Nộp bài thất bại: ${error.message}`)
 
-  // 5. Cộng điểm và XP cho từng HS (bỏ qua nếu chờ GV chấm)
+  // 5. Cộng XP cho từng HS (bỏ qua nếu chờ GV chấm)
   if (!isPendingTeacher) {
-    const pointsPerStudent =
-      scoreDistribution === 'equal'
-        ? Math.floor(score / submittedFor.length)
-        : score
-
     const xpPerStudent =
       scoreDistribution === 'equal'
         ? Math.floor(xpEarned / submittedFor.length)
         : xpEarned
 
     await Promise.all(
+
       submittedFor.map(async (studentId) => {
-        await addPoints(studentId, pointsPerStudent)
         await addXP(studentId, xpPerStudent)
       })
     )
@@ -141,44 +134,41 @@ export async function submitTask(input: SubmitTaskInput): Promise<TaskResult> {
 async function autoGrade(
   task: Task,
   answer: Json
-): Promise<{ score: number; maxScore: number; feedback: string }> {
-  const maxScore = task.points
+): Promise<{ isPassed: boolean; feedback: string }> {
 
   if (task.type === 'quiz') {
-    return gradeQuiz(task.content, answer, maxScore)
+    return gradeQuiz(task.content, answer)
   }
 
   if (task.type === 'short_answer') {
-    return await gradeShortAnswerSemantic(task, answer, maxScore)
+    return await gradeShortAnswerSemantic(task, answer)
   }
 
   if (task.type === 'photo_upload') {
-    return await gradePhotoWithVision(task, answer, maxScore)
+    return await gradePhotoWithVision(task, answer)
   }
 
   if (task.type === 'practice') {
     return {
-      score: 0,
-      maxScore,
-      feedback: '📸 Bài thực hành đã nộp! Đang chờ GV chấm điểm.',
+      isPassed: false,
+      feedback: '📸 Bài thực hành đã nộp! Đang chờ GV duyệt.',
     }
   }
 
-  return { score: 0, maxScore, feedback: 'Bài đã nộp.' }
+  return { isPassed: true, feedback: 'Bài đã nộp thành công.' }
 }
 
 /** Chấm trắc nghiệm */
 function gradeQuiz(
   content: Json,
-  answer: Json,
-  maxScore: number
-): { score: number; maxScore: number; feedback: string } {
+  answer: Json
+): { isPassed: boolean; feedback: string } {
   try {
     const quizContent = content as { questions: { correctAnswer: number }[] }
     const studentAnswers = answer as { answers: number[] }
 
     if (!quizContent.questions || !studentAnswers.answers) {
-      return { score: 0, maxScore, feedback: 'Định dạng bài làm không hợp lệ.' }
+      return { isPassed: false, feedback: 'Định dạng bài làm không hợp lệ.' }
     }
 
     let correct = 0
@@ -190,27 +180,25 @@ function gradeQuiz(
       }
     })
 
-    const score = Math.round((correct / total) * maxScore)
     const percentage = Math.round((correct / total) * 100)
+    const isPassed = percentage >= 50
 
     let feedback: string
     if (percentage >= 80) feedback = `🎉 Xuất sắc! ${correct}/${total} câu đúng!`
-    else if (percentage >= 60) feedback = `👍 Khá tốt! ${correct}/${total} câu đúng. Cố gắng thêm nhé!`
-    else if (percentage >= 40) feedback = `🤔 ${correct}/${total} câu đúng. Em cần xem lại bài học.`
-    else feedback = `📖 ${correct}/${total} câu đúng. Hãy đọc lại tài liệu và thử lại nhé!`
+    else if (percentage >= 50) feedback = `👍 Tốt! ${correct}/${total} câu đúng.`
+    else feedback = `📖 ${correct}/${total} câu đúng. Hãy xem lại bài và thử lại nhé!`
 
-    return { score, maxScore, feedback }
+    return { isPassed, feedback }
   } catch {
-    return { score: 0, maxScore, feedback: 'Lỗi khi chấm bài.' }
+    return { isPassed: false, feedback: 'Lỗi khi chấm bài.' }
   }
 }
 
 /** Chấm tự luận ngắn bằng Gemini (Semantic similarity) */
 async function gradeShortAnswerSemantic(
   task: Task,
-  answer: Json,
-  maxScore: number
-): Promise<{ score: number; maxScore: number; feedback: string }> {
+  answer: Json
+): Promise<{ isPassed: boolean; feedback: string }> {
   const taskContent = task.content as { keywords?: string[]; referenceAnswer?: string; question?: string }
   const studentAnswer = answer as { text: string }
 
@@ -219,39 +207,37 @@ async function gradeShortAnswerSemantic(
   const reference = taskContent?.referenceAnswer || ''
   const question = taskContent?.question || task.title
 
-  // Lấy API key từ localStorage hoặc env
   const apiKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('VITE_GEMINI_API_KEY') || import.meta.env.VITE_GEMINI_API_KEY || ''
 
   if (!apiKey || !studentText) {
-    return gradeShortAnswerFallback(keywords, studentText, maxScore)
+    return gradeShortAnswerFallback(keywords, studentText)
   }
 
   try {
-    const prompt = `Bạn là một giám khảo AI chấm điểm câu trả lời tự luận ngắn của học sinh.
-Hãy chấm điểm dựa trên mức độ hiểu biết ngữ nghĩa (semantic similarity), các từ khóa quan trọng và đáp án tham khảo (nếu có).
+    const prompt = `Bạn là một giám khảo AI đánh giá câu trả lời tự luận ngắn của học sinh Tiểu học.
+Hãy xem xét câu trả lời của học sinh xem đã Đạt hay Chưa đạt dựa trên ngữ nghĩa và các từ khóa (nếu có).
 
 ## Câu hỏi/Nhiệm vụ:
 ${question}
 
-## Từ khóa yêu cầu (Càng nhiều từ khóa được diễn đạt đúng ý càng tốt):
+## Từ khóa yêu cầu (nếu có):
 ${keywords.length > 0 ? keywords.join(', ') : 'Không có từ khóa cụ thể.'}
 
-## Đáp án tham khảo/Tiêu chí chấm điểm:
-${reference || 'Học sinh cần trả lời logic, đúng trọng tâm câu hỏi.'}
+## Đáp án tham khảo:
+${reference || 'Học sinh trả lời logic, đúng ý là được.'}
 
 ## Bài làm của học sinh:
 "${studentText}"
 
-## Yêu cầu chấm điểm:
-1. Thang điểm tối đa là: ${maxScore} điểm.
-2. Đánh giá về mặt ý nghĩa, sự hiểu bài của học sinh (đừng chỉ so khớp chữ cái, nếu học sinh dùng từ đồng nghĩa hoặc cách diễn đạt khác mà đúng ý thì vẫn cho điểm tối đa).
-3. Đưa ra phản hồi (feedback) bằng tiếng Việt cực kỳ thân thiện, khích lệ học sinh, chỉ ra chỗ đúng và chỗ cần bổ sung (nếu có).
-4. Bạn BẮT BUỘC phải trả về kết quả dưới dạng một đối tượng JSON duy nhất có cấu trúc chính xác như sau:
+## Yêu cầu:
+1. Đánh giá xem câu trả lời của học sinh đã "Đạt" (is_passed: true) hay "Chưa đạt" (is_passed: false). Chỉ cần đúng ý chính, sai lỗi chính tả nhẹ hoặc diễn đạt khác vẫn chấp nhận được.
+2. Đưa ra phản hồi thân thiện, khích lệ học sinh, giải thích ngắn gọn lý do vì sao chưa đạt nếu cần thiết.
+3. TRẢ VỀ CHỈ MỘT ĐỐI TƯỢNG JSON với cấu trúc:
 {
-  "score": <số điểm học sinh đạt được, kiểu số nguyên từ 0 đến ${maxScore}>,
-  "feedback": "<phản hồi bằng tiếng Việt>"
+  "is_passed": <true hoặc false>,
+  "feedback": "<nhận xét>"
 }
-Tuyệt đối không trả thêm bất kỳ văn bản nào khác ngoài JSON này.`
+Không kèm theo bất kỳ văn bản nào khác.`
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
@@ -259,42 +245,37 @@ Tuyệt đối không trả thêm bất kỳ văn bản nào khác ngoài JSON n
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.2, // Giảm độ ngẫu nhiên để chấm nhất quán
-          responseMimeType: 'application/json' // Yêu cầu trả về JSON
+          temperature: 0.2,
+          responseMimeType: 'application/json'
         }
       })
     })
 
-    if (!response.ok) {
-      throw new Error('API Response not OK')
-    }
+    if (!response.ok) throw new Error('API Response not OK')
 
     const data = await response.json()
     const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
     const parsed = JSON.parse(resultText.trim())
 
     return {
-      score: typeof parsed.score === 'number' ? Math.min(Math.max(0, Math.round(parsed.score)), maxScore) : 0,
-      maxScore,
-      feedback: parsed.feedback || 'Bài làm đã được chấm điểm tự động.'
+      isPassed: parsed.is_passed === true,
+      feedback: parsed.feedback || 'Bài làm đã được chấm tự động.'
     }
   } catch (err) {
     console.error('Semantic grading failed, falling back to keywords:', err)
-    return gradeShortAnswerFallback(keywords, studentText, maxScore)
+    return gradeShortAnswerFallback(keywords, studentText)
   }
 }
 
 /** Chấm tự luận ngắn theo từ khóa (Fallback) */
 function gradeShortAnswerFallback(
   keywords: string[],
-  studentText: string,
-  maxScore: number
-): { score: number; maxScore: number; feedback: string } {
+  studentText: string
+): { isPassed: boolean; feedback: string } {
   if (keywords.length === 0 || !studentText) {
     return {
-      score: 0,
-      maxScore,
-      feedback: '📝 Bài đã nộp! Đang chờ GV chấm điểm.'
+      isPassed: false,
+      feedback: '📝 Bài đã nộp! Đang chờ GV duyệt.'
     }
   }
 
@@ -306,22 +287,21 @@ function gradeShortAnswerFallback(
   })
 
   const ratio = matched / keywords.length
-  const score = Math.round(ratio * maxScore)
+  const isPassed = ratio >= 0.5
 
   let feedback: string
-  if (ratio >= 0.8) feedback = `✅ [Tự động - Từ khóa] Rất tốt! Em đã bao quát ${matched}/${keywords.length} ý chính.`
-  else if (ratio >= 0.5) feedback = `👍 [Tự động - Từ khóa] Khá! Em đã nêu được ${matched}/${keywords.length} ý. Bổ sung thêm nhé!`
-  else feedback = `📖 [Tự động - Từ khóa] Em mới nêu được ${matched}/${keywords.length} ý. Hãy xem lại tài liệu.`
+  if (ratio >= 0.8) feedback = `✅ [Tự động - Từ khóa] Đạt! Rất tốt! Em đã bao quát ${matched}/${keywords.length} ý chính.`
+  else if (ratio >= 0.5) feedback = `👍 [Tự động - Từ khóa] Đạt! Khá! Em đã nêu được ${matched}/${keywords.length} ý.`
+  else feedback = `📖 [Tự động - Từ khóa] Chưa đạt! Em mới nêu được ${matched}/${keywords.length} ý. Hãy xem lại tài liệu và sửa lại nhé.`
 
-  return { score, maxScore, feedback }
+  return { isPassed, feedback }
 }
 
 /** Chấm bài tập nộp ảnh bằng Gemini Vision */
 async function gradePhotoWithVision(
   task: Task,
-  answer: Json,
-  maxScore: number
-): Promise<{ score: number; maxScore: number; feedback: string }> {
+  answer: Json
+): Promise<{ isPassed: boolean; feedback: string }> {
   const taskContent = task.content as { rubric?: string; referenceAnswer?: string; question?: string }
   const photoAnswer = answer as { url: string; base64?: string }
 
@@ -335,9 +315,8 @@ async function gradePhotoWithVision(
 
   if (!apiKey || (!photoUrl && !base64Data)) {
     return {
-      score: 0,
-      maxScore,
-      feedback: '📸 Bài đã nộp! Đang chờ GV chấm điểm (Không có API key hoặc ảnh).'
+      isPassed: false,
+      feedback: '📸 Bài đã nộp! Đang chờ GV duyệt (Không có API key hoặc ảnh).'
     }
   }
 
@@ -375,28 +354,27 @@ async function gradePhotoWithVision(
 
     if (!base64Part) throw new Error('Không lấy được dữ liệu ảnh')
 
-    const promptText = `Bạn là một giám khảo AI chấm điểm sản phẩm thực hành học tập qua hình ảnh học sinh chụp.
-Hãy chấm điểm dựa trên tiêu chí chấm điểm (rubric) và đáp án tham khảo (nếu có).
+    const promptText = `Bạn là một giám khảo AI đánh giá sản phẩm thực hành học tập qua hình ảnh học sinh chụp.
+Hãy xem xét hình ảnh và quyết định kết quả Đạt/Chưa đạt.
 
 ## Câu hỏi/Nhiệm vụ:
 ${question}
 
-## Tiêu chí chấm điểm (Rubric):
+## Yêu cầu (Rubric):
 ${rubric}
 
 ## Đáp án tham khảo (nếu có):
 ${reference}
 
-## Yêu cầu chấm điểm:
-1. Thang điểm tối đa là: ${maxScore} điểm.
-2. Hãy xem kỹ hình ảnh đính kèm, phân tích độ hoàn thành và tính đúng đắn của bài làm.
-3. Đưa ra phản hồi (feedback) bằng tiếng Việt cực kỳ thân thiện, khích lệ học sinh, chỉ ra chỗ đúng và chỗ cần bổ sung (nếu có).
-4. Bạn BẮT BUỘC phải trả về kết quả dưới dạng một đối tượng JSON duy nhất có cấu trúc chính xác như sau:
+## Yêu cầu đánh giá:
+1. Kiểm tra hình ảnh xem có đúng với yêu cầu không.
+2. Trả về "is_passed": true (nếu đạt) hoặc false (nếu chưa đạt hoặc làm sai).
+3. Viết nhận xét (feedback) tiếng Việt khích lệ học sinh, chỉ ra chỗ tốt hoặc chỗ cần sửa.
+4. TRẢ VỀ ĐỐI TƯỢNG JSON MỘT CẤP (không có markdown khác):
 {
-  "score": <số điểm học sinh đạt được, kiểu số nguyên từ 0 đến ${maxScore}>,
-  "feedback": "<phản hồi bằng tiếng Việt>"
-}
-Tuyệt đối không trả thêm bất kỳ văn bản nào khác ngoài JSON này.`
+  "is_passed": <true/false>,
+  "feedback": "<nhận xét>"
+}`
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
@@ -416,50 +394,41 @@ Tuyệt đối không trả thêm bất kỳ văn bản nào khác ngoài JSON n
       })
     })
 
-    if (!response.ok) {
-      throw new Error('API Response not OK')
-    }
+    if (!response.ok) throw new Error('API Response not OK')
 
     const data = await response.json()
     const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
     const parsed = JSON.parse(resultText.trim())
 
     return {
-      score: typeof parsed.score === 'number' ? Math.min(Math.max(0, Math.round(parsed.score)), maxScore) : 0,
-      maxScore,
-      feedback: `📸 [AI Chấm Nháp] ${parsed.feedback || 'Bài làm đã được chấm điểm tự động qua hình ảnh.'}`
+      isPassed: parsed.is_passed === true,
+      feedback: `📸 [AI Duyệt] ${parsed.feedback || 'Bài làm đã được AI xem qua.'}`
     }
   } catch (err) {
     console.error('Vision grading failed:', err)
     return {
-      score: 0,
-      maxScore,
-      feedback: '📸 Bài đã nộp thành công! Đang chờ GV chấm điểm (Lỗi chấm tự động).'
+      isPassed: false,
+      feedback: '📸 Bài đã nộp! Lỗi AI nên bài đang chờ GV duyệt thủ công.'
     }
   }
 }
 
 // ─── TÍNH XP ────────────────────────────────
 
+/** Tính XP dựa trên kết quả đạt hay chưa đạt */
 function calculateXP(
-  score: number,
-  maxScore: number,
+  isPassed: boolean,
+  xpReward: number,
   scoringMode: string
 ): number {
-  if (maxScore === 0) return 5 // XP cơ bản cho việc nộp bài
+  if (!isPassed) return 0 // Không đạt thì không được XP
 
-  const ratio = score / maxScore
-  let baseXP: number
-
-  if (ratio >= 0.9) baseXP = 20
-  else if (ratio >= 0.7) baseXP = 15
-  else if (ratio >= 0.5) baseXP = 10
-  else baseXP = 5
+  let totalXP = xpReward
 
   // Bonus cho mode cá nhân (khuyến khích tự làm)
-  if (scoringMode === 'individual') baseXP += 5
+  if (scoringMode === 'individual') totalXP += 5
 
-  return baseXP
+  return totalXP
 }
 
 // ─── LẤY KẾT QUẢ ───────────────────────────
@@ -503,7 +472,7 @@ export async function gradeTaskResultByTeacher(
 
   if (fetchErr || !currentResult) throw new Error('Không tìm thấy bài làm')
 
-  // Lấy task để biết scoring_mode và max points
+  // Lấy task để biết scoring_mode và xp_reward
   const { data: task } = await supabase
     .from('tasks')
     .select('*')
@@ -513,18 +482,14 @@ export async function gradeTaskResultByTeacher(
   if (!task) throw new Error('Không tìm thấy thông tin nhiệm vụ')
 
   if (verdict === 'approved') {
-    // ĐẠT: cho điểm tối đa + cộng XP
-    const newScore = task.points
-    const newXp = calculateXP(newScore, task.points, task.scoring_mode)
-    const oldScore = currentResult.score ?? 0
+    // ĐẠT: cộng XP
+    const newXp = calculateXP(true, task.xp_reward, task.scoring_mode)
     const oldXp = currentResult.xp_earned ?? 0
-    const scoreDiff = newScore - oldScore
     const xpDiff = newXp - oldXp
 
     const { data: updatedResult, error: updateErr } = await supabase
       .from('task_results')
       .update({
-        score: newScore,
         xp_earned: newXp,
         feedback: teacherFeedback || '✅ GV đã duyệt: ĐẠT! Tuyệt vời!',
         grading_status: 'graded',
@@ -533,16 +498,11 @@ export async function gradeTaskResultByTeacher(
       .select()
       .single()
 
-    if (updateErr) throw new Error(`Cập nhật điểm thất bại: ${updateErr.message}`)
+    if (updateErr) throw new Error(`Cập nhật thất bại: ${updateErr.message}`)
 
-    // Cộng điểm & XP cho học sinh
+    // Cộng XP cho học sinh
     const submittedFor = (currentResult.submitted_for || []) as string[]
     const scoreDistribution = currentResult.score_distribution
-
-    const pointsDiffPerStudent =
-      scoreDistribution === 'equal'
-        ? Math.floor(scoreDiff / submittedFor.length)
-        : scoreDiff
 
     const xpDiffPerStudent =
       scoreDistribution === 'equal'
@@ -551,18 +511,16 @@ export async function gradeTaskResultByTeacher(
 
     await Promise.all(
       submittedFor.map(async (studentId) => {
-        await addPoints(studentId, pointsDiffPerStudent)
         await addXP(studentId, xpDiffPerStudent)
       })
     )
 
     return updatedResult
   } else {
-    // CHƯA ĐẠT: giữ điểm 0, gửi feedback để HS sửa và nộp lại
+    // CHƯA ĐẠT: 0 XP, gửi feedback để HS sửa và nộp lại
     const { data: updatedResult, error: updateErr } = await supabase
       .from('task_results')
       .update({
-        score: 0,
         xp_earned: 0,
         feedback: teacherFeedback || '❌ GV nhận xét: Chưa đạt. Vui lòng xem lại và nộp lại.',
         grading_status: 'rejected',

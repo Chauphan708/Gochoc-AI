@@ -39,7 +39,6 @@ CREATE TABLE students (
 
   -- HỒ SƠ CÁ NHÂN
   total_xp INT DEFAULT 0,
-  total_points INT DEFAULT 0,
   badges JSONB DEFAULT '[]',
   total_sessions INT DEFAULT 0,
   total_interactions INT DEFAULT 0,
@@ -135,7 +134,7 @@ CREATE TABLE tasks (
   type TEXT CHECK (type IN ('quiz', 'short_answer', 'photo_upload', 'practice', 'cipher')),
   content JSONB NOT NULL,
   order_num INT NOT NULL,
-  points INT DEFAULT 10,
+  xp_reward INT DEFAULT 10,
   time_limit_minutes INT,
 
   -- CÁCH TÍNH ĐIỂM (v5)
@@ -281,10 +280,8 @@ CREATE TABLE task_results (
   submitted_by UUID REFERENCES students,
   submitted_for UUID[] DEFAULT '{}',
   answer JSONB,
-  score INT,
-  max_score INT,
-  hints_used INT DEFAULT 0,
   xp_earned INT DEFAULT 0,
+  hints_used INT DEFAULT 0,
   feedback TEXT,
   score_distribution TEXT CHECK (score_distribution IN (
     'full', 'equal', 'weighted'

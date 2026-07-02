@@ -63,8 +63,8 @@ export function StudentProfileDrawer({ isOpen, onClose, student }: StudentProfil
             <div className="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
               <Trophy className="w-5 h-5" />
             </div>
-            <div className="text-2xl font-bold text-slate-200">{student.total_points}</div>
-            <div className="text-xs text-slate-500 uppercase font-bold tracking-wider">Điểm Rèn Luyện</div>
+            <div className="text-2xl font-bold text-slate-200">{student.total_xp}</div>
+            <div className="text-xs text-slate-500 uppercase font-bold tracking-wider">Tổng Kinh Nghiệm (XP)</div>
           </div>
           
           <div className="bg-[#1A1C23] border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center gap-2">
@@ -86,8 +86,13 @@ export function StudentProfileDrawer({ isOpen, onClose, student }: StudentProfil
             <div className="bg-[#1A1C23] border border-white/5 rounded-xl p-3 flex flex-col items-center text-center gap-2">
               <Shield className="w-8 h-8 text-amber-300 fill-amber-300/20" />
               <span className="text-[10px] text-slate-300 font-bold leading-tight">Mầm Non Trạm</span>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {student.total_xp > 100 && (
+                  <span className="badge badge-primary">Tân binh xuất sắc</span>
+                )}
+              </div>
             </div>
-            {student.total_points > 100 && (
+            {student.total_xp > 100 && (
               <div className="bg-[#1A1C23] border border-amber-500/20 rounded-xl p-3 flex flex-col items-center text-center gap-2 relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-orange-500/10" />
                 <Award className="w-8 h-8 text-orange-400" />

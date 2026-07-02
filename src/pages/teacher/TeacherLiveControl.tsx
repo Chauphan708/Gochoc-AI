@@ -437,7 +437,7 @@ export function TeacherLiveControl() {
                 className={`px-3 py-1 rounded-md font-medium transition-colors cursor-pointer relative ${activeRightTab === 'submissions' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
               >
                 📝 Bài làm HS
-                {taskResults.filter(r => r.score === 0 || (tasks.find(t => t.id === r.task_id)?.type !== 'quiz' && r.score === 0)).length > 0 && (
+                {taskResults.filter(r => r.grading_status === 'pending_teacher').length > 0 && (
                   <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                 )}
               </button>
@@ -539,8 +539,8 @@ export function TeacherLiveControl() {
                           ⏳ Chờ GV chấm
                         </span>
                       ) : (
-                        <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${result.score > 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-500/10 text-slate-400'}`}>
-                          Điểm: {result.score} / {result.max_score}
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${result.grading_status === 'graded' ? 'bg-emerald-500/10 text-emerald-400' : result.grading_status === 'rejected' ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                          {result.grading_status === 'graded' ? 'Đạt' : result.grading_status === 'rejected' ? 'Chưa đạt' : 'Đang chấm'}
                         </span>
                       )}
                     </div>
