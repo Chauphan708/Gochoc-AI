@@ -16,6 +16,7 @@ import {
   Circle,
   Crown,
   PenLine,
+  LogOut,
 } from 'lucide-react'
 import {
   findSessionByJoinCode, 
@@ -227,9 +228,23 @@ export function LobbyPage() {
               </h1>
               <p className="text-sm text-slate-400 mt-1">{session.subject || 'Không có môn học'}</p>
             </div>
-            <div className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-amber-300">
-              <Circle className="w-2 h-2 fill-current animate-pulse" />
-              Đang chờ
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/25 text-amber-300">
+                <Circle className="w-2 h-2 fill-current animate-pulse" />
+                Đang chờ
+              </div>
+              <button
+                onClick={() => {
+                  if (window.confirm('Bạn có chắc chắn muốn rời khỏi sảnh chờ này không?')) {
+                    navigate(role === 'teacher' ? '/teacher/dashboard' : '/');
+                  }
+                }}
+                className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-rose-400 transition-colors"
+                title="Thoát phiên"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Thoát
+              </button>
             </div>
           </div>
 
