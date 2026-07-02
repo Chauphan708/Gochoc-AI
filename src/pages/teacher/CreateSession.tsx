@@ -678,7 +678,7 @@ export function CreateSession() {
                           </select>
                         </div>
                         <div className="sm:col-span-6">
-                          <label className="block text-xs font-medium text-slate-400 mb-1">Phần thưởng (XP)</label>
+                          <label className="block text-xs font-medium text-slate-400 mb-1">Điểm rèn luyện</label>
                           <input 
                             type="number" 
                             className="input text-sm py-2" 
@@ -688,27 +688,113 @@ export function CreateSession() {
                         </div>
                       </div>
 
+                      {/* ─── TASK CONTENT (Question, Options, Rubric) ─── */}
+                      <div className="bg-black/20 p-4 rounded-lg border border-white/5 mb-4">
+                        <label className="block text-xs font-medium text-indigo-300 mb-2">Nội dung chi tiết</label>
+                        
+                        {task.type === 'quiz' && (
+                          <div className="space-y-3">
+                            <textarea
+                              className="input text-sm w-full h-16"
+                              placeholder="Nhập nội dung câu hỏi trắc nghiệm..."
+                              value={(task.content as any)?.question || ''}
+                              onChange={(e) => updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), question: e.target.value })}
+                            />
+                            <div className="space-y-2">
+                              {[0, 1, 2, 3].map((optIndex) => (
+                                <div key={optIndex} className="flex items-center gap-2">
+                                  <input 
+                                    type="radio" 
+                                    name={`correct-${activeStationTab}-${tIndex}`} 
+                                    checked={(task.content as any)?.correctAnswer === optIndex}
+                                    onChange={() => updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), correctAnswer: optIndex })}
+                                    className="accent-emerald-500 w-4 h-4 cursor-pointer"
+                                  />
+                                  <input 
+                                    className="input text-sm flex-1 py-1.5"
+                                    placeholder={`Lựa chọn ${String.fromCharCode(65 + optIndex)}`}
+                                    value={(task.content as any)?.options?.[optIndex] || ''}
+                                    onChange={(e) => {
+                                      const newOptions = [...((task.content as any)?.options || ['', '', '', ''])]
+                                      newOptions[optIndex] = e.target.value
+                                      updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), options: newOptions })
+                                    }}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {task.type === 'short_answer' && (
+                          <div className="space-y-3">
+                            <textarea
+                              className="input text-sm w-full h-16"
+                              placeholder="Nhập yêu cầu đề bài cho học sinh..."
+                              value={(task.content as any)?.question || ''}
+                              onChange={(e) => updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), question: e.target.value })}
+                            />
+                            {task.grading_mode === 'auto' && (
+                              <textarea
+                                className="input text-sm w-full h-16 border-cyan-500/30"
+                                placeholder="Nhập ĐÁP ÁN CHUẨN hoặc TIÊU CHÍ để AI dựa vào đó duyệt bài..."
+                                value={(task.content as any)?.rubric || ''}
+                                onChange={(e) => updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), rubric: e.target.value })}
+                              />
+                            )}
+                          </div>
+                        )}
+
+                        {task.type === 'photo_upload' && (
+                          <div className="space-y-3">
+                            <textarea
+                              className="input text-sm w-full h-16"
+                              placeholder="Yêu cầu học sinh chụp hình gì? (VD: Chụp hình một bức tranh có 3 màu cơ bản)"
+                              value={(task.content as any)?.question || ''}
+                              onChange={(e) => updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), question: e.target.value })}
+                            />
+                            {task.grading_mode === 'auto' && (
+                              <textarea
+                                className="input text-sm w-full h-16 border-cyan-500/30"
+                                placeholder="Mô tả cho AI Vision biết bức ảnh ĐẠT yêu cầu phải có những chi tiết nào..."
+                                value={(task.content as any)?.rubric || ''}
+                                onChange={(e) => updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), rubric: e.target.value })}
+                              />
+                            )}
+                          </div>
+                        )}
+                        
+                        {task.type === 'practice' && (
+                          <textarea
+                            className="input text-sm w-full h-16"
+                            placeholder="Nhập hướng dẫn thực hành cho học sinh..."
+                            value={(task.content as any)?.question || ''}
+                            onChange={(e) => updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), question: e.target.value })}
+                          />
+                        )}
+                      </div>
+
                       {/* Scoring Mode */}
                       <div>
                         <label className="block text-xs font-medium text-emerald-400 mb-2">
                           <BarChart3 className="w-3 h-3 inline mr-1" />
-                          Cách phân bổ phần thưởng
+                          Xác nhận hoàn thành (Ghi nhận điểm)
                         </label>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           <label className={`flex flex-col p-2 rounded-lg border cursor-pointer ${task.scoring_mode === 'individual' ? 'bg-indigo-500/20 border-indigo-500/50' : 'bg-transparent border-white/10 hover:border-white/20'}`}>
                             <input type="radio" className="sr-only" checked={task.scoring_mode === 'individual'} onChange={() => updateTask(activeStationTab, tIndex, 'scoring_mode', 'individual')} />
                             <span className="text-sm font-medium text-slate-200">👤 Cá nhân</span>
-                            <span className="text-[10px] text-slate-400 mt-1">Mỗi HS tự làm, nhận XP riêng</span>
+                            <span className="text-[10px] text-slate-400 mt-1">Mỗi HS tự làm, tự nhận điểm</span>
                           </label>
                           <label className={`flex flex-col p-2 rounded-lg border cursor-pointer ${task.scoring_mode === 'group_equal' ? 'bg-emerald-500/20 border-emerald-500/50' : 'bg-transparent border-white/10 hover:border-white/20'}`}>
                             <input type="radio" className="sr-only" checked={task.scoring_mode === 'group_equal'} onChange={() => updateTask(activeStationTab, tIndex, 'scoring_mode', 'group_equal')} />
                             <span className="text-sm font-medium text-slate-200">👥 Nhóm chia đều</span>
-                            <span className="text-[10px] text-slate-400 mt-1">1 HS nộp, cả nhóm được XP</span>
+                            <span className="text-[10px] text-slate-400 mt-1">1 HS nộp, cả nhóm được điểm</span>
                           </label>
                           <label className={`flex flex-col p-2 rounded-lg border cursor-pointer ${task.scoring_mode === 'group_leader_tag' ? 'bg-amber-500/20 border-amber-500/50' : 'bg-transparent border-white/10 hover:border-white/20'}`}>
                             <input type="radio" className="sr-only" checked={task.scoring_mode === 'group_leader_tag'} onChange={() => updateTask(activeStationTab, tIndex, 'scoring_mode', 'group_leader_tag')} />
                             <span className="text-sm font-medium text-slate-200">👑 NT gắn tag</span>
-                            <span className="text-[10px] text-slate-400 mt-1">Nộp bài kèm tag HS đã làm phần đó</span>
+                            <span className="text-[10px] text-slate-400 mt-1">Nộp kèm tag HS đã làm phần đó</span>
                           </label>
                         </div>
                       </div>
@@ -717,18 +803,18 @@ export function CreateSession() {
                       {(task.type === 'short_answer' || task.type === 'photo_upload' || task.type === 'practice') && (
                         <div className="mt-3">
                           <label className="block text-xs font-medium text-amber-400 mb-2">
-                            🎯 Cách duyệt bài
+                            🎯 Người kiểm tra / Duyệt
                           </label>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <label className={`flex flex-col p-2 rounded-lg border cursor-pointer ${task.grading_mode === 'auto' ? 'bg-cyan-500/20 border-cyan-500/50' : 'bg-transparent border-white/10 hover:border-white/20'}`}>
                               <input type="radio" className="sr-only" checked={task.grading_mode === 'auto'} onChange={() => updateTask(activeStationTab, tIndex, 'grading_mode' as any, 'auto')} />
                               <span className="text-sm font-medium text-slate-200">🤖 AI tự duyệt</span>
-                              <span className="text-[10px] text-slate-400 mt-1">AI tự duyệt và quyết định Đạt/Chưa đạt</span>
+                              <span className="text-[10px] text-slate-400 mt-1">AI tự động kiểm tra Đạt/Chưa đạt</span>
                             </label>
                             <label className={`flex flex-col p-2 rounded-lg border cursor-pointer ${task.grading_mode === 'teacher' ? 'bg-amber-500/20 border-amber-500/50' : 'bg-transparent border-white/10 hover:border-white/20'}`}>
                               <input type="radio" className="sr-only" checked={task.grading_mode === 'teacher'} onChange={() => updateTask(activeStationTab, tIndex, 'grading_mode' as any, 'teacher')} />
                               <span className="text-sm font-medium text-slate-200">👨‍🏫 GV duyệt</span>
-                              <span className="text-[10px] text-slate-400 mt-1">Câu hỏi mở — chờ GV duyệt Đạt/Chưa đạt</span>
+                              <span className="text-[10px] text-slate-400 mt-1">Chờ GV kiểm tra thủ công sau</span>
                             </label>
                           </div>
                         </div>
