@@ -29,17 +29,9 @@ export async function createStudent(input: {
   gender?: Gender
   className?: string
 }): Promise<Student> {
-  // Tạo anonymous user cho HS (không cần email)
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-    email: `${input.studentCode}@gochoc.local`,
-    password: input.studentCode, // Mật khẩu mặc định = mã HS
-    email_confirm: true,
-    user_metadata: { display_name: input.displayName, role: 'student' },
-  })
-
-  // Nếu không có quyền admin, tạo trực tiếp vào bảng students
-  // (dành cho MVP — sau này sẽ dùng Edge Function)
-  const studentId = authData?.user?.id ?? crypto.randomUUID()
+  // Tạo trực tiếp vào bảng students bằng UUID ngẫu nhiên
+  // (dành cho MVP — sau này nếu cần Auth thật cho HS sẽ dùng Edge Function)
+  const studentId = crypto.randomUUID()
 
   const { data, error } = await supabase
     .from('students')
