@@ -17,6 +17,8 @@ const StudentStation = lazy(() => import('@/pages/student/StudentStation').then(
 const LobbyPage = lazy(() => import('@/pages/LobbyPage').then(module => ({ default: module.LobbyPage })))
 const TeacherLiveControl = lazy(() => import('@/pages/teacher/TeacherLiveControl').then(module => ({ default: module.TeacherLiveControl })))
 const SessionReport = lazy(() => import('@/pages/teacher/SessionReport').then(module => ({ default: module.SessionReport })))
+const TeacherReports = lazy(() => import('@/pages/teacher/TeacherReports').then(module => ({ default: module.TeacherReports })))
+const TeacherTemplates = lazy(() => import('@/pages/teacher/TeacherTemplates').then(module => ({ default: module.TeacherTemplates })))
 
 // Suspense fallback
 const SuspenseWrapper = ({ children }: { children: React.ReactNode }) => (
@@ -60,6 +62,14 @@ export const router = createBrowserRouter([
           {
             path: 'report/:sessionId',
             element: <SuspenseWrapper><SessionReport /></SuspenseWrapper>,
+          },
+          {
+            path: 'reports',
+            element: <SuspenseWrapper><TeacherReports /></SuspenseWrapper>,
+          },
+          {
+            path: 'templates',
+            element: <SuspenseWrapper><TeacherTemplates /></SuspenseWrapper>,
           },
         ],
       },

@@ -134,7 +134,7 @@ export function TeacherDashboard() {
               label: 'Báo cáo',
               desc: 'Điểm & thống kê',
               color: 'from-amber-500 to-orange-600',
-              action: () => alert('Tính năng Báo cáo chung đang được phát triển. Vui lòng xem báo cáo chi tiết ở từng Phiên học!'),
+              action: () => navigate('/teacher/reports'),
               id: 'btn-reports',
             },
             {
@@ -142,7 +142,7 @@ export function TeacherDashboard() {
               label: 'Kho mẫu',
               desc: 'Template phiên học',
               color: 'from-pink-500 to-rose-600',
-              action: () => alert('Tính năng Kho mẫu đang được phát triển, sẽ ra mắt trong phiên bản sắp tới!'),
+              action: () => navigate('/teacher/templates'),
               id: 'btn-templates',
             },
           ].map((item, i) => (

@@ -29,6 +29,17 @@ export type SenderType = 'teacher' | 'co_teacher' | 'assistant' | 'leader' | 'se
 export type RecipientType = 'teacher' | 'group' | 'all_groups' | 'co_teachers'
 export type ChatRole = 'student' | 'bot'
 
+export interface SessionTemplate {
+  id: string
+  teacher_id: string
+  name: string
+  description: string | null
+  subject: string | null
+  grade_level: string | null
+  config: Json // snapshot: { sessionSettings, stations[], tasks[] }
+  created_at: string
+}
+
 // ═══════════════════════════════════════
 // TABLE TYPES
 // ═══════════════════════════════════════
