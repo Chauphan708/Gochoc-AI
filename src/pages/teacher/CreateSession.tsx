@@ -51,6 +51,7 @@ interface TaskDraft {
   xp_reward: number
   scoring_mode: 'individual' | 'group_equal' | 'group_leader_tag'
   grading_mode: 'auto' | 'teacher'
+  content?: any
 }
 
 interface StationDraft {
