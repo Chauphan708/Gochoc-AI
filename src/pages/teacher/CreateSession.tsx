@@ -48,7 +48,7 @@ type SessionForm = z.infer<typeof sessionSchema>
 interface TaskDraft {
   id: string
   title: string
-  type: 'quiz' | 'short_answer' | 'photo_upload' | 'practice'
+  type: 'quiz' | 'short_answer' | 'photo_upload' | 'practice' | 'external_link'
   xp_reward: number
   scoring_mode: 'individual' | 'group_equal' | 'group_leader_tag'
   grading_mode: 'auto' | 'teacher'
@@ -722,8 +722,9 @@ export function CreateSession() {
                           >
                             <option value="quiz">Trắc nghiệm</option>
                             <option value="short_answer">Tự luận ngắn</option>
-                            <option value="photo_upload">Chụp ảnh chụp/Upload</option>
+                            <option value="photo_upload">Chụp ảnh / Upload</option>
                             <option value="practice">Thực hành</option>
+                            <option value="external_link">Liên kết ngoài (Quizizz, Form...)</option>
                           </select>
                         </div>
                         <div className="sm:col-span-6">
@@ -821,6 +822,23 @@ export function CreateSession() {
                             onChange={(e) => updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), question: e.target.value })}
                           />
                         )}
+
+                        {task.type === 'external_link' && (
+                          <div className="space-y-3">
+                            <input
+                              className="input text-sm w-full"
+                              placeholder="Dán đường dẫn (Link) trang web vào đây (VD: https://quizizz.com/...)"
+                              value={(task.content as any)?.url || ''}
+                              onChange={(e) => updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), url: e.target.value })}
+                            />
+                            <textarea
+                              className="input text-sm w-full h-16"
+                              placeholder="Lời nhắn cho học sinh (VD: Các em hãy làm bài tập trên Quizizz và quay lại đây nộp bài nhé)"
+                              value={(task.content as any)?.question || ''}
+                              onChange={(e) => updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), question: e.target.value })}
+                            />
+                          </div>
+                        )}
                       </div>
 
                       {/* Scoring Mode */}
@@ -877,7 +895,7 @@ export function CreateSession() {
                     className="btn btn-ghost w-full border-dashed text-sm"
                   >
                     <Plus className="w-4 h-4" />
-                    Thêm nhiệm vụ
+                    Thêm nhiệm vụ / Câu hỏi
                   </button>
                 </div>
               </div>
