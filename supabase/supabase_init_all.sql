@@ -357,9 +357,9 @@ CREATE POLICY "students_teacher_manage" ON students
 CREATE POLICY "sessions_teacher_manage" ON sessions
   FOR ALL USING (teacher_id = auth.uid());
 
--- Mọi người xem đượcphiên đang hoạt động (để HS tham gia)
+-- Mọi người xem được phiên đang hoạt động (để HS tham gia)
 CREATE POLICY "sessions_public_read" ON sessions
-  FOR SELECT USING (status IN ('active', 'lobby'));
+  FOR SELECT USING (status IN ('active', 'lobby', 'draft'));
 
 -- Stations/Tasks thuộc session của GV
 CREATE POLICY "stations_session_owner" ON stations

@@ -85,7 +85,7 @@ export async function createSession(input: CreateSessionInput): Promise<Session>
       group_size: input.groupSize ?? 4,
       device_mode: input.deviceMode ?? 'individual',
       round_durations: input.roundDurations ?? null,
-      status: 'draft',
+      status: 'lobby',
     })
     .select()
     .single()
