@@ -496,7 +496,7 @@ export function LobbyPage() {
       {/* Modal QR Code */}
       {showQr && session && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in overflow-y-auto">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-[1000px] w-full shadow-2xl relative my-8">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-[800px] w-full shadow-2xl relative my-8">
             <button
               onClick={() => setShowQr(false)}
               className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
@@ -509,9 +509,9 @@ export function LobbyPage() {
             <div className="bg-white p-6 rounded-2xl flex items-center justify-center mb-8 w-fit mx-auto shadow-inner">
               <QRCode
                 value={`${window.location.origin}/student/join?code=${session.join_code}`}
-                size={800}
+                size={640}
                 style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                viewBox={`0 0 800 800`}
+                viewBox={`0 0 640 640`}
               />
             </div>
             
