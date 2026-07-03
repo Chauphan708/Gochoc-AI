@@ -72,7 +72,8 @@ export async function submitTask(input: SubmitTaskInput): Promise<TaskResult> {
     : await autoGrade(task, answer)
 
   // 3. Tính XP
-  const xpEarned = calculateXP(isPassed, task.xp_reward, task.scoring_mode)
+  const retryCount = (answer as any)?.retry_count || 0
+  const xpEarned = calculateXP(isPassed, task.xp_reward, task.scoring_mode, retryCount)
 
   // 4. Lưu kết quả
   const { data: result, error } = await supabase
@@ -439,11 +440,21 @@ ${reference}
 function calculateXP(
   isPassed: boolean,
   xpReward: number,
-  scoringMode: string
+  scoringMode: string,
+  retryCount: number = 0
 ): number {
   if (!isPassed) return 0 // Không đạt thì không được XP
 
   let totalXP = xpReward
+
+  // Trừ XP theo số lần nộp sai (Anti-Guessing)
+  if (retryCount === 1) {
+    totalXP = Math.floor(totalXP * 0.7) // Nhận 70% XP
+  } else if (retryCount === 2) {
+    totalXP = Math.floor(totalXP * 0.4) // Nhận 40% XP
+  } else if (retryCount >= 3) {
+    totalXP = Math.max(1, Math.floor(totalXP * 0.1)) // Nhận 10% XP, tối thiểu 1 XP
+  }
 
   // Bonus cho mode cá nhân (khuyến khích tự làm)
   if (scoringMode === 'individual') totalXP += 5
@@ -503,7 +514,8 @@ export async function gradeTaskResultByTeacher(
 
   if (verdict === 'approved') {
     // ĐẠT: cộng XP
-    const newXp = calculateXP(true, task.xp_reward, task.scoring_mode)
+    const retryCount = (currentResult.answer as any)?.retry_count || 0
+    const newXp = calculateXP(true, task.xp_reward, task.scoring_mode, retryCount)
     const oldXp = currentResult.xp_earned ?? 0
     const xpDiff = newXp - oldXp
 

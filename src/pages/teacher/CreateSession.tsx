@@ -238,7 +238,8 @@ export function CreateSession() {
       grading_mode: 'auto',
       content: {
         questions: [{ question: '', options: ['', '', '', ''], correctAnswer: 0 }],
-        pass_threshold: 1
+        pass_threshold: 1,
+        shuffle_options: true
       }
     })
     setStations(updated)
@@ -726,7 +727,7 @@ export function CreateSession() {
                               const newType = e.target.value as any;
                               let newContent = (task.content as any) || {};
                               if (newType === 'quiz' && !newContent.questions) {
-                                newContent = { questions: [{ question: '', options: ['', '', '', ''], correctAnswer: 0 }], pass_threshold: 1 };
+                                newContent = { questions: [{ question: '', options: ['', '', '', ''], correctAnswer: 0 }], pass_threshold: 1, shuffle_options: true };
                               } else if (newType === 'short_answer' && !newContent.questions) {
                                 newContent = { questions: [{ question: '', rubric: '' }], pass_threshold: 1 };
                               }
@@ -827,16 +828,27 @@ export function CreateSession() {
                               <Plus className="w-3 h-3 mr-1" /> Thêm câu hỏi trắc nghiệm
                             </button>
                             
-                            <div className="pt-2 border-t border-white/5 flex items-center justify-between">
-                              <label className="text-xs font-medium text-amber-400">Điều kiện Đạt (Pass Threshold):</label>
+                            <div className="pt-2 border-t border-white/5 flex flex-col gap-3">
                               <div className="flex items-center gap-2">
-                                <span className="text-xs text-slate-300">Cần làm đúng</span>
-                                <input type="number" min={1} max={(task.content as any)?.questions?.length || 1} 
-                                  className="input w-16 text-center text-sm py-1"
-                                  value={(task.content as any)?.pass_threshold || 1}
-                                  onChange={(e) => updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), pass_threshold: parseInt(e.target.value) || 1 })}
+                                <input 
+                                  type="checkbox"
+                                  checked={(task.content as any)?.shuffle_options !== false}
+                                  onChange={(e) => updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), shuffle_options: e.target.checked })}
+                                  className="accent-emerald-500 w-4 h-4 rounded cursor-pointer"
                                 />
-                                <span className="text-xs text-slate-300">/ {(task.content as any)?.questions?.length || 1} câu</span>
+                                <label className="text-xs text-slate-300">Đảo vị trí đáp án mỗi lần nộp</label>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <label className="text-xs font-medium text-amber-400">Điều kiện Đạt (Pass Threshold):</label>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-slate-300">Cần làm đúng</span>
+                                  <input type="number" min={1} max={(task.content as any)?.questions?.length || 1} 
+                                    className="input w-16 text-center text-sm py-1"
+                                    value={(task.content as any)?.pass_threshold || 1}
+                                    onChange={(e) => updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), pass_threshold: parseInt(e.target.value) || 1 })}
+                                  />
+                                  <span className="text-xs text-slate-300">/ {(task.content as any)?.questions?.length || 1} câu</span>
+                                </div>
                               </div>
                             </div>
                           </div>

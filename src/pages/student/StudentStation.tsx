@@ -3,7 +3,7 @@
    Giao diện HS tại Góc học (Hỗ trợ Quick Switch, Quiz UI)
    ═══════════════════════════════════════ */
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Crown, PenLine, ChevronDown, Loader2, ArrowRight, Camera, CheckCircle2, Send, MessageSquare, Award, WifiOff, Users, Clock } from 'lucide-react'
 import { AIChatWindow } from '@/components/Student/AIChatWindow'
@@ -42,6 +42,51 @@ export function StudentStation() {
   const [taskTags, setTaskTags] = useState<Record<string, string[]>>({})
   const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({})
   const [taskResults, setTaskResults] = useState<Record<string, any>>({})
+  
+  const [retryCounts, setRetryCounts] = useState<Record<string, number>>({})
+  const [cooldowns, setCooldowns] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCooldowns(prev => {
+        const next = { ...prev };
+        let changed = false;
+        for (const [taskId, time] of Object.entries(next)) {
+          if (time > 0) {
+            next[taskId] = time - 1;
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const shuffledQuizOptions = useMemo(() => {
+    if (!station || !tasks || tasks.length === 0) return {};
+    const map: Record<string, {text: string, originalIndex: number}[][]> = {}
+    tasks.forEach((task: any) => {
+      if (task.type === 'quiz') {
+         const content = task.content as any;
+         const questions = content?.questions || [];
+         const retryCount = retryCounts[task.id] || 0;
+         const shouldShuffle = content?.shuffle_options !== false;
+         
+         map[task.id] = questions.map((q: any) => {
+            const opts = (q.options || []).map((text: string, originalIndex: number) => ({text, originalIndex}));
+            if (shouldShuffle && retryCount >= 0) { // re-shuffle even on first try or any retry
+               for (let i = opts.length - 1; i > 0; i--) {
+                  const j = Math.floor(Math.random() * (i + 1));
+                  [opts[i], opts[j]] = [opts[j], opts[i]];
+               }
+            }
+            return opts;
+         });
+      }
+    });
+    return map;
+  }, [station, retryCounts]);
   
   // Timer state (server-synced)
   const [timeRemaining, setTimeRemaining] = useState(0)
@@ -127,6 +172,7 @@ export function StudentStation() {
         const restoredText: Record<string, string[]> = {}
         const restoredPhotos: Record<string, string> = {}
         const restoredQuiz: Record<string, number[]> = {}
+        const restoredRetries: Record<string, number> = {}
         
         ;(resultsData ?? []).forEach((res: any) => {
           const taskObj = dbTasks.find((t: any) => t.id === res.task_id)
@@ -156,6 +202,10 @@ export function StudentStation() {
               } else if (taskObj.type === 'quiz' && res.answer?.answers) {
                 restoredQuiz[res.task_id] = res.answer.answers
               }
+
+              if (res.answer?.retry_count) {
+                restoredRetries[res.task_id] = res.answer.retry_count
+              }
             }
           }
         })
@@ -165,6 +215,7 @@ export function StudentStation() {
         setTextAnswers(restoredText)
         setUploadedPhotos(restoredPhotos)
         setQuizAnswers(restoredQuiz)
+        setRetryCounts(restoredRetries)
       }
     } catch (err: any) {
       alert(err.message)
@@ -351,6 +402,9 @@ export function StudentStation() {
         answerData = { status: 'completed' }
       }
 
+      const currentRetry = retryCounts[task.id] || 0;
+      answerData.retry_count = currentRetry;
+
       const input = {
         taskId: task.id,
         groupId: group.id,
@@ -367,8 +421,19 @@ export function StudentStation() {
         alert("🌐 Thiết bị đang ngoại tuyến. Bài làm của em đã được lưu vào hàng đợi và sẽ tự động nộp khi có mạng trở lại!")
       } else {
         const result = await submitTask(input)
-        setCompletedTasks(prev => ({ ...prev, [task.id]: true }))
-        setTaskResults(prev => ({ ...prev, [task.id]: result }))
+        if (result.grading_status === 'rejected') {
+          setCompletedTasks(prev => ({ ...prev, [task.id]: false }))
+          setTaskResults(prev => ({ ...prev, [task.id]: result }))
+          
+          const newRetry = currentRetry + 1
+          setRetryCounts(prev => ({ ...prev, [task.id]: newRetry }))
+          
+          const cd = newRetry === 1 ? 15 : newRetry === 2 ? 30 : 60
+          setCooldowns(prev => ({ ...prev, [task.id]: cd }))
+        } else {
+          setCompletedTasks(prev => ({ ...prev, [task.id]: true }))
+          setTaskResults(prev => ({ ...prev, [task.id]: result }))
+        }
       }
     } catch (err: any) {
       alert("Nộp bài thất bại: " + err.message)
@@ -610,16 +675,16 @@ export function StudentStation() {
                         <div key={qIdx} className="mb-4">
                           <p className="text-sm text-slate-200 mb-2 font-medium">{qIdx + 1}. {q.question}</p>
                           <div className="space-y-2">
-                            {q.options?.map((opt: string, optIdx: number) => (
+                            {shuffledQuizOptions[task.id]?.[qIdx]?.map((opt: {text: string, originalIndex: number}, optIdx: number) => (
                               <label key={optIdx} className="flex items-center gap-3 p-2 rounded border border-white/5 bg-white/5 cursor-pointer hover:bg-white/10">
                                 <input 
                                   type="radio" 
                                   name={`task_${task.id}_q_${qIdx}`} 
                                   className="accent-indigo-500"
-                                  checked={(quizAnswers[task.id] || [])[qIdx] === optIdx}
-                                  onChange={() => handleQuizChange(task.id, qIdx, optIdx)}
+                                  checked={(quizAnswers[task.id] || [])[qIdx] === opt.originalIndex}
+                                  onChange={() => handleQuizChange(task.id, qIdx, opt.originalIndex)}
                                 />
-                                <span className="text-sm text-slate-300">{opt}</span>
+                                <span className="text-sm text-slate-300">{opt.text}</span>
                               </label>
                             ))}
                           </div>
