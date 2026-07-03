@@ -62,6 +62,9 @@ export function TeacherLiveControl() {
 
       const { session: s, stations: st, tasks: t } = await getSessionById(sessionId)
       setSession(s)
+      if (s.rotation_time_minutes) {
+        setCustomMinutes(s.rotation_time_minutes.toString())
+      }
       setStations(st.sort((a,b) => a.order_num - b.order_num))
       setTasks(t)
 
