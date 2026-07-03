@@ -80,6 +80,7 @@ export function CreateSession() {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<SessionForm>({
     resolver: zodResolver(sessionSchema),
@@ -100,6 +101,7 @@ export function CreateSession() {
   const [isCustomDurations, setIsCustomDurations] = useState(false)
   const [customDurations, setCustomDurations] = useState<number[]>([10, 10, 10, 10])
   const [teacherClasses, setTeacherClasses] = useState<string[]>([])
+  const [showCustomSubject, setShowCustomSubject] = useState(false)
 
   useEffect(() => {
     if (user?.id) {
@@ -327,26 +329,44 @@ export function CreateSession() {
                       <label className="block text-sm font-medium text-slate-300 mb-1.5">
                         Môn học
                       </label>
-                      <input
-                        id="input-subject"
-                        className="input"
-                        placeholder="VD: Toán"
-                        list="subject-list"
-                        {...register('subject')}
-                      />
-                      <datalist id="subject-list">
-                        <option value="Tiếng Việt" />
-                        <option value="Toán" />
-                        <option value="Khoa học" />
-                        <option value="Lịch sử và Địa lí" />
-                        <option value="Công nghệ" />
-                        <option value="Đạo đức" />
-                        <option value="HĐTN" />
-                        <option value="Tiếng Anh" />
-                        <option value="Âm nhạc" />
-                        <option value="Mĩ thuật" />
-                        <option value="Trò chơi lớn" />
-                      </datalist>
+                      <div className="space-y-2">
+                        <select
+                          className="input"
+                          value={showCustomSubject ? 'other' : (watch('subject') || '')}
+                          onChange={(e) => {
+                            if (e.target.value === 'other') {
+                              setShowCustomSubject(true)
+                              setValue('subject', '')
+                            } else {
+                              setShowCustomSubject(false)
+                              setValue('subject', e.target.value)
+                            }
+                          }}
+                        >
+                          <option value="" disabled>-- Chọn môn học --</option>
+                          <option value="Tiếng Việt">Tiếng Việt</option>
+                          <option value="Toán">Toán</option>
+                          <option value="Khoa học">Khoa học</option>
+                          <option value="Lịch sử và Địa lí">Lịch sử và Địa lí</option>
+                          <option value="Công nghệ">Công nghệ</option>
+                          <option value="Đạo đức">Đạo đức</option>
+                          <option value="HĐTN">HĐTN</option>
+                          <option value="Tiếng Anh">Tiếng Anh</option>
+                          <option value="Âm nhạc">Âm nhạc</option>
+                          <option value="Mĩ thuật">Mĩ thuật</option>
+                          <option value="Trò chơi lớn">Trò chơi lớn</option>
+                          <option value="other">✍️ Nhập môn học khác...</option>
+                        </select>
+                        
+                        {/* Ẩn input thật để validate, chỉ hiện khi chọn "Môn học khác" */}
+                        <input
+                          id="input-subject"
+                          type={showCustomSubject ? "text" : "hidden"}
+                          className="input"
+                          placeholder="Nhập tên môn học..."
+                          {...register('subject')}
+                        />
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-300 mb-1.5">
