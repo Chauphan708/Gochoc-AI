@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Send, Users, Activity, MessageSquare, Play, Pause, SkipForward, XCircle } from 'lucide-react'
+import { ArrowLeft, Send, Users, Activity, MessageSquare, Play, Pause, SkipForward, XCircle, Copy, QrCode, X } from 'lucide-react'
+import QRCode from 'react-qr-code'
 import { supabase } from '@/lib/supabase'
 import { getSessionById, getLiveGroupStats } from '@/services/sessionService'
 import { sendMessage, getSessionMessages, subscribeToMessages } from '@/services/messageService'
@@ -36,6 +37,14 @@ export function TeacherLiveControl() {
   const [isRotating, setIsRotating] = useState(false)
   const [isEnding, setIsEnding] = useState(false)
   const [customMinutes, setCustomMinutes] = useState('15')
+  const [showQr, setShowQr] = useState(false)
+
+  const copyJoinLink = () => {
+    if (!session) return
+    const link = `${window.location.origin}/student/join?code=${session.join_code}`
+    navigator.clipboard.writeText(link)
+    alert('Đã copy link tham gia!')
+  }
 
   // Chat State
   const [messages, setMessages] = useState<Message[]>([])
@@ -273,13 +282,28 @@ export function TeacherLiveControl() {
         {/* CONTROL PANEL */}
         <div className="bg-[#1A1C23] border border-indigo-500/20 rounded-xl p-5 shadow-lg mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            {/* Clock & Round info */}
             <div className={`flex flex-col items-center justify-center p-3 rounded-xl bg-black/40 border border-white/5 min-w-[100px] ${timeRemaining < 60 && timeRemaining > 0 ? 'border-red-500 bg-red-500/10 animate-pulse' : ''}`}>
               <span className="text-xs text-slate-400 font-medium tracking-wide uppercase mb-1">⏳ Vòng {rotationState?.currentRound || 0}/{rotationState?.totalRounds || 0}</span>
               <span className="text-2xl font-mono font-bold text-white">
                 {Math.floor(timeRemaining / 60).toString().padStart(2, '0')}:
                 {(timeRemaining % 60).toString().padStart(2, '0')}
               </span>
+            </div>
+            
+            {/* Join Code Display */}
+            <div className="flex flex-col items-center justify-center p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 relative ml-2">
+              <span className="text-xs text-indigo-300 font-medium tracking-wide uppercase mb-1">Mã tham gia</span>
+              <span className="text-2xl font-mono font-bold text-indigo-400">
+                {session.join_code}
+              </span>
+              <div className="absolute -top-3 -right-3 flex gap-1">
+                <button onClick={copyJoinLink} className="p-1.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg transition-transform hover:scale-110" title="Copy Link">
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => setShowQr(true)} className="p-1.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg transition-transform hover:scale-110" title="Mã QR">
+                  <QrCode className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
             
             <div className="flex flex-col">
@@ -677,6 +701,38 @@ export function TeacherLiveControl() {
           </div>
         )}
       </div>
+
+      {/* Modal QR Code */}
+      {showQr && session && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative">
+            <button
+              onClick={() => setShowQr(false)}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-xl font-bold text-white mb-2 text-center">Quét mã để tham gia</h3>
+            <p className="text-sm text-slate-400 mb-6 text-center">Học sinh dùng Zalo hoặc Camera để quét mã này</p>
+            
+            <div className="bg-white p-4 rounded-xl flex items-center justify-center mb-6 w-fit mx-auto">
+              <QRCode
+                value={`${window.location.origin}/student/join?code=${session.join_code}`}
+                size={200}
+                style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                viewBox={`0 0 256 256`}
+              />
+            </div>
+            
+            <div className="flex gap-2">
+               <button onClick={copyJoinLink} className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors">
+                 <Copy className="w-4 h-4" />
+                 Copy Link
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

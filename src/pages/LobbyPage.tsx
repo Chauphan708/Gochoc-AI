@@ -265,7 +265,7 @@ export function LobbyPage() {
               </div>
               <div className="text-xs text-slate-400 mt-1">Mã phiên</div>
               {role === 'teacher' && (
-                <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute top-1 right-1 flex gap-1">
                   <button onClick={copyJoinLink} className="p-1.5 rounded-md bg-white/10 hover:bg-white/20 text-indigo-300" title="Copy Link">
                     <Copy className="w-3.5 h-3.5" />
                   </button>
