@@ -15,9 +15,13 @@ import {
   CheckCircle2,
   Circle,
   Crown,
-  PenLine,
   LogOut,
+  Copy,
+  QrCode,
+  X,
+  PenLine,
 } from 'lucide-react'
+import QRCode from 'react-qr-code'
 import {
   findSessionByJoinCode, 
   getLobbyParticipants, 
@@ -50,6 +54,14 @@ export function LobbyPage() {
   const [stationLoading, setStationLoading] = useState(false)
   const [targetStationId, setTargetStationId] = useState<string | null>(null)
   const [groups, setGroups] = useState<any[]>([])
+  const [showQr, setShowQr] = useState(false)
+
+  const copyJoinLink = () => {
+    if (!session) return
+    const link = `${window.location.origin}/student/join?code=${session.join_code}`
+    navigator.clipboard.writeText(link)
+    alert('Đã copy link tham gia!')
+  }
 
   useEffect(() => {
     if (!sessionId) return
@@ -249,11 +261,21 @@ export function LobbyPage() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-            <div className="p-3 rounded-lg bg-white/5">
+            <div className="p-3 rounded-lg bg-white/5 relative group">
               <div className="text-2xl font-bold text-indigo-400">
                 {session.join_code}
               </div>
               <div className="text-xs text-slate-400 mt-1">Mã phiên</div>
+              {role === 'teacher' && (
+                <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={copyJoinLink} className="p-1.5 rounded-md bg-white/10 hover:bg-white/20 text-indigo-300" title="Copy Link">
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => setShowQr(true)} className="p-1.5 rounded-md bg-white/10 hover:bg-white/20 text-indigo-300" title="Mã QR">
+                    <QrCode className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
             <div className="p-3 rounded-lg bg-white/5">
               <div className="text-2xl font-bold text-emerald-400 flex items-center justify-center gap-1">
@@ -472,6 +494,38 @@ export function LobbyPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal QR Code */}
+      {showQr && session && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative">
+            <button
+              onClick={() => setShowQr(false)}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-xl font-bold text-white mb-2 text-center">Quét mã để tham gia</h3>
+            <p className="text-sm text-slate-400 mb-6 text-center">Học sinh dùng Zalo hoặc Camera để quét mã này</p>
+            
+            <div className="bg-white p-4 rounded-xl flex items-center justify-center mb-6 w-fit mx-auto">
+              <QRCode
+                value={`${window.location.origin}/student/join?code=${session.join_code}`}
+                size={200}
+                style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                viewBox={`0 0 256 256`}
+              />
+            </div>
+            
+            <div className="flex gap-2">
+               <button onClick={copyJoinLink} className="btn btn-secondary w-full">
+                 <Copy className="w-4 h-4 mr-2" />
+                 Copy Link
+               </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

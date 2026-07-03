@@ -4,7 +4,7 @@
    ═══════════════════════════════════════ */
 
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, GraduationCap, Hash, User, KeyRound } from 'lucide-react'
 import { findSessionByJoinCode, joinLobby } from '@/services/sessionService'
 import { loginStudent } from '@/services/authService'
@@ -13,6 +13,7 @@ import type { Session } from '@/types/database'
 
 export function StudentJoin() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { setUser } = useAuthStore()
   const [step, setStep] = useState(1) // 1: Join Code, 2: Student Login
   const [sessionInfo, setSessionInfo] = useState<Session | null>(null)
@@ -30,7 +31,13 @@ export function StudentJoin() {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   useEffect(() => {
-    inputRefs.current[0]?.focus()
+    const queryCode = searchParams.get('code')
+    if (queryCode && queryCode.length === 4 && /^\d+$/.test(queryCode)) {
+      setCode(queryCode.split(''))
+      handleJoin(queryCode)
+    } else {
+      inputRefs.current[0]?.focus()
+    }
   }, [])
 
   const handleChange = (index: number, value: string) => {
