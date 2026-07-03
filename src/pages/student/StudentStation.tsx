@@ -321,16 +321,23 @@ export function StudentStation() {
       
       if (task.type === 'quiz') {
         answerData = { answers: quizAnswers[task.id] || [] }
-      } else if (task.type === 'short_answer') {
+      } else if (task.type === 'short_answer' || (task.type === 'external_link' && (task.content as any)?.verify_method === 'code')) {
         answerData = { text: textAnswers[task.id] || '' }
-      } else if (task.type === 'photo_upload') {
-        const photoUrl = uploadedPhotos[task.id]
-        answerData = { url: photoUrl || '' }
-        if (!photoUrl) {
-          alert('Vui lòng chụp ảnh trước khi nộp bài!')
+        if (!answerData.text) {
+          alert('Vui lòng nhập mật mã / câu trả lời trước khi nộp bài!')
           setSubmitting(null)
           return
         }
+      } else if (task.type === 'photo_upload' || (task.type === 'external_link' && (task.content as any)?.verify_method === 'photo')) {
+        const photoUrl = uploadedPhotos[task.id]
+        answerData = { url: photoUrl || '' }
+        if (!photoUrl) {
+          alert('Vui lòng chụp ảnh minh chứng trước khi nộp bài!')
+          setSubmitting(null)
+          return
+        }
+      } else {
+        answerData = { status: 'completed' }
       }
 
       const input = {
@@ -619,9 +626,21 @@ export function StudentStation() {
                         />
                       )}
 
-                      {/* PHOTO UPLOAD UI */}
-                      {task.type === 'photo_upload' && (
+                      {/* PHOTO UPLOAD / EXTERNAL LINK (PHOTO) UI */}
+                      {(task.type === 'photo_upload' || (task.type === 'external_link' && content.verify_method === 'photo')) && (
                         <div className="space-y-3">
+                          {task.type === 'external_link' && (
+                            <div className="mb-4">
+                              <p className="text-sm text-slate-200 bg-indigo-500/10 p-3 rounded-lg border border-indigo-500/20 mb-3">{content.question || 'Hãy nhấn vào nút bên dưới để truy cập vào bài tập.'}</p>
+                              <a 
+                                href={content.url} target="_blank" rel="noopener noreferrer"
+                                className="btn btn-primary w-full shadow-lg shadow-indigo-500/20 mb-4"
+                              >
+                                Mở trang bài tập ở tab mới
+                              </a>
+                              <label className="text-xs text-emerald-400 font-medium mb-1 block">📸 Yêu cầu: Chụp ảnh màn hình minh chứng sau khi hoàn thành</label>
+                            </div>
+                          )}
                           {uploadedPhotos[task.id] && (
                             <div className="relative rounded-lg overflow-hidden">
                               <img src={uploadedPhotos[task.id]} alt="Uploaded" className="w-full max-h-48 object-cover rounded-lg" />
@@ -665,6 +684,31 @@ export function StudentStation() {
                               <><Camera className="w-8 h-8 text-slate-500 mb-2" /><span className="text-sm text-slate-300 font-medium">Bấm để chụp ảnh hoặc chọn từ thư viện</span></>
                             )}
                           </div>
+                        </div>
+                      )}
+
+                      {/* EXTERNAL LINK (CODE / NONE) UI */}
+                      {task.type === 'external_link' && content.verify_method !== 'photo' && (
+                        <div className="space-y-4">
+                          <p className="text-sm text-slate-200 bg-indigo-500/10 p-3 rounded-lg border border-indigo-500/20">{content.question || 'Hãy nhấn vào nút bên dưới để truy cập vào bài tập.'}</p>
+                          <a 
+                            href={content.url} target="_blank" rel="noopener noreferrer"
+                            className="btn btn-primary w-full shadow-lg shadow-indigo-500/20"
+                          >
+                            Mở trang bài tập ở tab mới
+                          </a>
+                          
+                          {content.verify_method === 'code' && (
+                            <div className="pt-2">
+                              <label className="text-xs text-emerald-400 font-medium mb-2 block">🔑 Yêu cầu: Nhập mật mã xác nhận hoàn thành</label>
+                              <input
+                                placeholder="Nhập mật mã vào đây..."
+                                className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-indigo-500/50"
+                                value={textAnswers[task.id] || ''}
+                                onChange={(e) => setTextAnswers(prev => ({...prev, [task.id]: e.target.value}))}
+                              />
+                            </div>
+                          )}
                         </div>
                       )}
                       
