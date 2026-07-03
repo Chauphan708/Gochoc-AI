@@ -164,7 +164,7 @@ function gradeQuiz(
   answer: Json
 ): { isPassed: boolean; feedback: string } {
   try {
-    const quizContent = content as { questions: { correctAnswer: number }[] }
+    const quizContent = content as any
     const studentAnswers = answer as { answers: number[] }
 
     if (!quizContent.questions || !studentAnswers.answers) {
@@ -173,20 +173,23 @@ function gradeQuiz(
 
     let correct = 0
     const total = quizContent.questions.length
+    const passThreshold = quizContent.pass_threshold || Math.ceil(total / 2) // Default pass if not set
 
-    quizContent.questions.forEach((q, i) => {
+    quizContent.questions.forEach((q: any, i: number) => {
       if (studentAnswers.answers[i] === q.correctAnswer) {
         correct++
       }
     })
 
-    const percentage = Math.round((correct / total) * 100)
-    const isPassed = percentage >= 50
+    const isPassed = correct >= passThreshold
 
     let feedback: string
-    if (percentage >= 80) feedback = `🎉 Xuất sắc! ${correct}/${total} câu đúng!`
-    else if (percentage >= 50) feedback = `👍 Tốt! ${correct}/${total} câu đúng.`
-    else feedback = `📖 ${correct}/${total} câu đúng. Hãy xem lại bài và thử lại nhé!`
+    if (isPassed) {
+      if (correct === total) feedback = `🎉 Xuất sắc! ${correct}/${total} câu đúng!`
+      else feedback = `👍 Tốt! ${correct}/${total} câu đúng (Đạt yêu cầu).`
+    } else {
+      feedback = `📖 ${correct}/${total} câu đúng. Cần làm đúng ít nhất ${passThreshold} câu để qua nhiệm vụ này.`
+    }
 
     return { isPassed, feedback }
   } catch {
@@ -199,72 +202,89 @@ async function gradeShortAnswerSemantic(
   task: Task,
   answer: Json
 ): Promise<{ isPassed: boolean; feedback: string }> {
-  const taskContent = task.content as { keywords?: string[]; referenceAnswer?: string; question?: string }
-  const studentAnswer = answer as { text: string }
+  const taskContent = task.content as any
+  const studentAnswer = answer as { texts: string[], text?: string }
 
-  const studentText = studentAnswer?.text || ''
-  const keywords = taskContent?.keywords || []
-  const reference = taskContent?.referenceAnswer || ''
-  const question = taskContent?.question || task.title
+  const studentTexts = studentAnswer?.texts || (studentAnswer?.text ? [studentAnswer.text] : [])
+  const questions = taskContent?.questions || [{ question: taskContent?.question, rubric: taskContent?.rubric }]
+  const passThreshold = taskContent?.pass_threshold || 1
 
   const apiKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('VITE_GEMINI_API_KEY') || import.meta.env.VITE_GEMINI_API_KEY || ''
 
-  if (!apiKey || !studentText) {
-    return gradeShortAnswerFallback(keywords, studentText)
+  if (!apiKey || studentTexts.length === 0) {
+    return { isPassed: false, feedback: 'Đã nộp bài, đang chờ GV duyệt thủ công do AI chưa được cấu hình.' }
   }
 
-  try {
-    const prompt = `Bạn là một giám khảo AI đánh giá câu trả lời tự luận ngắn của học sinh Tiểu học.
-Hãy xem xét câu trả lời của học sinh xem đã Đạt hay Chưa đạt dựa trên ngữ nghĩa và các từ khóa (nếu có).
+  let correctCount = 0
+  const feedbacks = []
 
-## Câu hỏi/Nhiệm vụ:
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i]
+    const studentText = studentTexts[i] || ''
+    const rubric = q.rubric || q.referenceAnswer || ''
+    const question = q.question || task.title
+
+    if (!studentText) {
+      feedbacks.push(`Câu ${i + 1}: Chưa trả lời`)
+      continue
+    }
+
+    try {
+      const prompt = `Bạn là giám khảo AI đánh giá câu tự luận ngắn.
+## Câu hỏi:
 ${question}
-
-## Từ khóa yêu cầu (nếu có):
-${keywords.length > 0 ? keywords.join(', ') : 'Không có từ khóa cụ thể.'}
-
-## Đáp án tham khảo:
-${reference || 'Học sinh trả lời logic, đúng ý là được.'}
-
+## Đáp án tham khảo / Tiêu chí (Rubric):
+${rubric || 'Học sinh trả lời logic, đúng ý là được.'}
 ## Bài làm của học sinh:
 "${studentText}"
-
 ## Yêu cầu:
-1. Đánh giá xem câu trả lời của học sinh đã "Đạt" (is_passed: true) hay "Chưa đạt" (is_passed: false). Chỉ cần đúng ý chính, sai lỗi chính tả nhẹ hoặc diễn đạt khác vẫn chấp nhận được.
-2. Đưa ra phản hồi thân thiện, khích lệ học sinh, giải thích ngắn gọn lý do vì sao chưa đạt nếu cần thiết.
-3. TRẢ VỀ CHỈ MỘT ĐỐI TƯỢNG JSON với cấu trúc:
-{
-  "is_passed": <true hoặc false>,
-  "feedback": "<nhận xét>"
-}
-Không kèm theo bất kỳ văn bản nào khác.`
+1. Đánh giá "Đạt" (is_passed: true) hay "Chưa đạt" (is_passed: false).
+2. Viết nhận xét (feedback).
+TRẢ VỀ JSON:
+{ "is_passed": boolean, "feedback": "nhận xét" }`
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.2,
-          responseMimeType: 'application/json'
-        }
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.1, responseMimeType: 'application/json' }
+        })
       })
-    })
 
-    if (!response.ok) throw new Error('API Response not OK')
+      if (!response.ok) throw new Error('API Response not OK')
 
-    const data = await response.json()
-    const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
-    const parsed = JSON.parse(resultText.trim())
+      const data = await response.json()
+      const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+      const parsed = JSON.parse(resultText.trim())
 
-    return {
-      isPassed: parsed.is_passed === true,
-      feedback: parsed.feedback || 'Bài làm đã được chấm tự động.'
+      if (parsed.is_passed) {
+        correctCount++
+        feedbacks.push(`Câu ${i + 1}: Đạt`)
+      } else {
+        feedbacks.push(`Câu ${i + 1}: Chưa đạt (${parsed.feedback})`)
+      }
+    } catch (err) {
+      console.error('Semantic grading failed for q', i, err)
+      feedbacks.push(`Câu ${i + 1}: Lỗi chấm AI`)
     }
-  } catch (err) {
-    console.error('Semantic grading failed, falling back to keywords:', err)
-    return gradeShortAnswerFallback(keywords, studentText)
   }
+
+  const isPassed = correctCount >= passThreshold
+  let finalFeedback = ''
+  if (isPassed) {
+    finalFeedback = `🎉 Đạt yêu cầu! (${correctCount}/${questions.length} câu).\n`
+  } else {
+    finalFeedback = `❌ Chưa đạt. Mới đúng ${correctCount}/${questions.length} câu (cần ${passThreshold} câu).\n`
+  }
+  
+  if (questions.length > 1) {
+    finalFeedback += feedbacks.join('\n')
+  } else {
+    finalFeedback += feedbacks[0].replace('Câu 1: ', '')
+  }
+
+  return { isPassed, feedback: finalFeedback }
 }
 
 /** Chấm tự luận ngắn theo từ khóa (Fallback) */

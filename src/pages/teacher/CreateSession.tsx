@@ -235,7 +235,11 @@ export function CreateSession() {
       type: 'quiz',
       xp_reward: 10,
       scoring_mode: 'individual',
-      grading_mode: 'auto'
+      grading_mode: 'auto',
+      content: {
+        questions: [{ question: '', options: ['', '', '', ''], correctAnswer: 0 }],
+        pass_threshold: 1
+      }
     })
     setStations(updated)
   }
@@ -718,7 +722,22 @@ export function CreateSession() {
                           <select 
                             className="input text-sm py-2"
                             value={task.type}
-                            onChange={(e) => updateTask(activeStationTab, tIndex, 'type', e.target.value)}
+                            onChange={(e) => {
+                              const newType = e.target.value as any;
+                              let newContent = (task.content as any) || {};
+                              if (newType === 'quiz' && !newContent.questions) {
+                                newContent = { questions: [{ question: '', options: ['', '', '', ''], correctAnswer: 0 }], pass_threshold: 1 };
+                              } else if (newType === 'short_answer' && !newContent.questions) {
+                                newContent = { questions: [{ question: '', rubric: '' }], pass_threshold: 1 };
+                              }
+                              const updated = [...stations];
+                              updated[activeStationTab].tasks[tIndex] = {
+                                ...updated[activeStationTab].tasks[tIndex],
+                                type: newType,
+                                content: newContent
+                              };
+                              setStations(updated);
+                            }}
                           >
                             <option value="quiz">Trắc nghiệm</option>
                             <option value="short_answer">Tự luận ngắn</option>
@@ -743,55 +762,147 @@ export function CreateSession() {
                         <label className="block text-xs font-medium text-indigo-300 mb-2">Nội dung chi tiết</label>
                         
                         {task.type === 'quiz' && (
-                          <div className="space-y-3">
-                            <textarea
-                              className="input text-sm w-full h-16"
-                              placeholder="Nhập nội dung câu hỏi trắc nghiệm..."
-                              value={(task.content as any)?.question || ''}
-                              onChange={(e) => updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), question: e.target.value })}
-                            />
-                            <div className="space-y-2">
-                              {[0, 1, 2, 3].map((optIndex) => (
-                                <div key={optIndex} className="flex items-center gap-2">
-                                  <input 
-                                    type="radio" 
-                                    name={`correct-${activeStationTab}-${tIndex}`} 
-                                    checked={(task.content as any)?.correctAnswer === optIndex}
-                                    onChange={() => updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), correctAnswer: optIndex })}
-                                    className="accent-emerald-500 w-4 h-4 cursor-pointer"
-                                  />
-                                  <input 
-                                    className="input text-sm flex-1 py-1.5"
-                                    placeholder={`Lựa chọn ${String.fromCharCode(65 + optIndex)}`}
-                                    value={(task.content as any)?.options?.[optIndex] || ''}
-                                    onChange={(e) => {
-                                      const newOptions = [...((task.content as any)?.options || ['', '', '', ''])]
-                                      newOptions[optIndex] = e.target.value
-                                      updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), options: newOptions })
-                                    }}
-                                  />
+                          <div className="space-y-4">
+                            {((task.content as any)?.questions || []).map((q: any, qIdx: number) => (
+                              <div key={qIdx} className="bg-black/20 p-3 rounded border border-white/5 relative">
+                                <button type="button" 
+                                  onClick={() => {
+                                    const newQs = [...(task.content as any).questions];
+                                    newQs.splice(qIdx, 1);
+                                    updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), questions: newQs });
+                                  }}
+                                  className="absolute top-2 right-2 text-red-400 hover:text-red-300"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                                <label className="block text-xs font-semibold text-slate-300 mb-2">Câu {qIdx + 1}:</label>
+                                <textarea
+                                  className="input text-sm w-full h-16 mb-3"
+                                  placeholder="Nhập nội dung câu hỏi trắc nghiệm..."
+                                  value={q.question || ''}
+                                  onChange={(e) => {
+                                    const newQs = [...(task.content as any).questions];
+                                    newQs[qIdx] = { ...q, question: e.target.value };
+                                    updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), questions: newQs });
+                                  }}
+                                />
+                                <div className="space-y-2">
+                                  {[0, 1, 2, 3].map((optIndex) => (
+                                    <div key={optIndex} className="flex items-center gap-2">
+                                      <input 
+                                        type="radio" 
+                                        name={`correct-${activeStationTab}-${tIndex}-${qIdx}`} 
+                                        checked={q.correctAnswer === optIndex}
+                                        onChange={() => {
+                                          const newQs = [...(task.content as any).questions];
+                                          newQs[qIdx] = { ...q, correctAnswer: optIndex };
+                                          updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), questions: newQs });
+                                        }}
+                                        className="accent-emerald-500 w-4 h-4 cursor-pointer"
+                                      />
+                                      <input 
+                                        className="input text-sm flex-1 py-1.5"
+                                        placeholder={`Lựa chọn ${String.fromCharCode(65 + optIndex)}`}
+                                        value={q.options?.[optIndex] || ''}
+                                        onChange={(e) => {
+                                          const newOpts = [...(q.options || ['', '', '', ''])];
+                                          newOpts[optIndex] = e.target.value;
+                                          const newQs = [...(task.content as any).questions];
+                                          newQs[qIdx] = { ...q, options: newOpts };
+                                          updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), questions: newQs });
+                                        }}
+                                      />
+                                    </div>
+                                  ))}
                                 </div>
-                              ))}
+                              </div>
+                            ))}
+                            <button type="button" 
+                              onClick={() => {
+                                const newQs = [...((task.content as any)?.questions || []), { question: '', options: ['', '', '', ''], correctAnswer: 0 }];
+                                updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), questions: newQs });
+                              }}
+                              className="btn btn-ghost w-full border-dashed text-xs text-indigo-300"
+                            >
+                              <Plus className="w-3 h-3 mr-1" /> Thêm câu hỏi trắc nghiệm
+                            </button>
+                            
+                            <div className="pt-2 border-t border-white/5 flex items-center justify-between">
+                              <label className="text-xs font-medium text-amber-400">Điều kiện Đạt (Pass Threshold):</label>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-slate-300">Cần làm đúng</span>
+                                <input type="number" min={1} max={(task.content as any)?.questions?.length || 1} 
+                                  className="input w-16 text-center text-sm py-1"
+                                  value={(task.content as any)?.pass_threshold || 1}
+                                  onChange={(e) => updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), pass_threshold: parseInt(e.target.value) || 1 })}
+                                />
+                                <span className="text-xs text-slate-300">/ {(task.content as any)?.questions?.length || 1} câu</span>
+                              </div>
                             </div>
                           </div>
                         )}
 
                         {task.type === 'short_answer' && (
-                          <div className="space-y-3">
-                            <textarea
-                              className="input text-sm w-full h-16"
-                              placeholder="Nhập yêu cầu đề bài cho học sinh..."
-                              value={(task.content as any)?.question || ''}
-                              onChange={(e) => updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), question: e.target.value })}
-                            />
-                            {task.grading_mode === 'auto' && (
-                              <textarea
-                                className="input text-sm w-full h-16 border-cyan-500/30"
-                                placeholder="Nhập ĐÁP ÁN CHUẨN hoặc TIÊU CHÍ để AI dựa vào đó duyệt bài..."
-                                value={(task.content as any)?.rubric || ''}
-                                onChange={(e) => updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), rubric: e.target.value })}
-                              />
-                            )}
+                          <div className="space-y-4">
+                            {((task.content as any)?.questions || []).map((q: any, qIdx: number) => (
+                              <div key={qIdx} className="bg-black/20 p-3 rounded border border-white/5 relative">
+                                <button type="button" 
+                                  onClick={() => {
+                                    const newQs = [...(task.content as any).questions];
+                                    newQs.splice(qIdx, 1);
+                                    updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), questions: newQs });
+                                  }}
+                                  className="absolute top-2 right-2 text-red-400 hover:text-red-300"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                                <label className="block text-xs font-semibold text-slate-300 mb-2">Câu {qIdx + 1}:</label>
+                                <textarea
+                                  className="input text-sm w-full h-16 mb-2"
+                                  placeholder="Nhập yêu cầu đề bài cho học sinh..."
+                                  value={q.question || ''}
+                                  onChange={(e) => {
+                                    const newQs = [...(task.content as any).questions];
+                                    newQs[qIdx] = { ...q, question: e.target.value };
+                                    updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), questions: newQs });
+                                  }}
+                                />
+                                {task.grading_mode === 'auto' && (
+                                  <textarea
+                                    className="input text-sm w-full h-16 border-cyan-500/30"
+                                    placeholder="Nhập ĐÁP ÁN CHUẨN hoặc TIÊU CHÍ để AI dựa vào đó duyệt bài..."
+                                    value={q.rubric || ''}
+                                    onChange={(e) => {
+                                      const newQs = [...(task.content as any).questions];
+                                      newQs[qIdx] = { ...q, rubric: e.target.value };
+                                      updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), questions: newQs });
+                                    }}
+                                  />
+                                )}
+                              </div>
+                            ))}
+                            <button type="button" 
+                              onClick={() => {
+                                const newQs = [...((task.content as any)?.questions || []), { question: '', rubric: '' }];
+                                updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), questions: newQs });
+                              }}
+                              className="btn btn-ghost w-full border-dashed text-xs text-indigo-300"
+                            >
+                              <Plus className="w-3 h-3 mr-1" /> Thêm câu hỏi tự luận / thảo luận
+                            </button>
+                            
+                            <div className="pt-2 border-t border-white/5 flex items-center justify-between">
+                              <label className="text-xs font-medium text-amber-400">Điều kiện Đạt (Pass Threshold):</label>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-slate-300">Cần làm đúng</span>
+                                <input type="number" min={1} max={(task.content as any)?.questions?.length || 1} 
+                                  className="input w-16 text-center text-sm py-1"
+                                  value={(task.content as any)?.pass_threshold || 1}
+                                  onChange={(e) => updateTask(activeStationTab, tIndex, 'content', { ...(task.content as any), pass_threshold: parseInt(e.target.value) || 1 })}
+                                />
+                                <span className="text-xs text-slate-300">/ {(task.content as any)?.questions?.length || 1} câu</span>
+                              </div>
+                            </div>
                           </div>
                         )}
 

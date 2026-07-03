@@ -38,7 +38,7 @@ export function StudentStation() {
 
   // Answers State
   const [quizAnswers, setQuizAnswers] = useState<Record<string, number[]>>({})
-  const [textAnswers, setTextAnswers] = useState<Record<string, string>>({})
+  const [textAnswers, setTextAnswers] = useState<Record<string, string[]>>({})
   const [taskTags, setTaskTags] = useState<Record<string, string[]>>({})
   const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({})
   const [taskResults, setTaskResults] = useState<Record<string, any>>({})
@@ -124,7 +124,7 @@ export function StudentStation() {
         const resultMap: Record<string, any> = {}
         
         // Restore answers to state so if rejected, student can edit them
-        const restoredText: Record<string, string> = {}
+        const restoredText: Record<string, string[]> = {}
         const restoredPhotos: Record<string, string> = {}
         const restoredQuiz: Record<string, number[]> = {}
         
@@ -145,8 +145,12 @@ export function StudentStation() {
               resultMap[res.task_id] = res
 
               // Restore answers
-              if (taskObj.type === 'short_answer' && res.answer?.text) {
-                restoredText[res.task_id] = res.answer.text
+              if (taskObj.type === 'short_answer' && res.answer?.texts) {
+                restoredText[res.task_id] = res.answer.texts
+              } else if (taskObj.type === 'short_answer' && res.answer?.text) {
+                restoredText[res.task_id] = [res.answer.text]
+              } else if (taskObj.type === 'external_link' && res.answer?.text) {
+                restoredText[res.task_id] = [res.answer.text]
               } else if (taskObj.type === 'photo_upload' && res.answer?.url) {
                 restoredPhotos[res.task_id] = res.answer.url
               } else if (taskObj.type === 'quiz' && res.answer?.answers) {
@@ -321,10 +325,17 @@ export function StudentStation() {
       
       if (task.type === 'quiz') {
         answerData = { answers: quizAnswers[task.id] || [] }
-      } else if (task.type === 'short_answer' || (task.type === 'external_link' && (task.content as any)?.verify_method === 'code')) {
-        answerData = { text: textAnswers[task.id] || '' }
+      } else if (task.type === 'short_answer') {
+        answerData = { texts: textAnswers[task.id] || [] }
+        if (!answerData.texts.length || answerData.texts.some((t: string) => !t.trim())) {
+          alert('Vui lòng trả lời đầy đủ các câu hỏi trước khi nộp bài!')
+          setSubmitting(null)
+          return
+        }
+      } else if (task.type === 'external_link' && (task.content as any)?.verify_method === 'code') {
+        answerData = { text: textAnswers[task.id]?.[0] || '' }
         if (!answerData.text) {
-          alert('Vui lòng nhập mật mã / câu trả lời trước khi nộp bài!')
+          alert('Vui lòng nhập mật mã xác nhận trước khi nộp bài!')
           setSubmitting(null)
           return
         }
@@ -616,15 +627,22 @@ export function StudentStation() {
                       ))}
 
                       {/* SHORT ANSWER UI */}
-                      {task.type === 'short_answer' && (
-                        <textarea
-                          placeholder="Nhập câu trả lời của bạn..."
-                          className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-indigo-500/50"
-                          rows={3}
-                          value={textAnswers[task.id] || ''}
-                          onChange={(e) => setTextAnswers(prev => ({...prev, [task.id]: e.target.value}))}
-                        />
-                      )}
+                      {task.type === 'short_answer' && (content.questions || [{ question: content.question }]).map((q: any, qIdx: number) => (
+                        <div key={qIdx} className="mb-4">
+                          <p className="text-sm text-slate-200 mb-2 font-medium">{qIdx + 1}. {q.question}</p>
+                          <textarea
+                            placeholder="Nhập câu trả lời của bạn..."
+                            className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-indigo-500/50"
+                            rows={3}
+                            value={(textAnswers[task.id] || [])[qIdx] || ''}
+                            onChange={(e) => {
+                              const newArr = [...(textAnswers[task.id] || [])];
+                              newArr[qIdx] = e.target.value;
+                              setTextAnswers(prev => ({...prev, [task.id]: newArr}));
+                            }}
+                          />
+                        </div>
+                      ))}
 
                       {/* PHOTO UPLOAD / EXTERNAL LINK (PHOTO) UI */}
                       {(task.type === 'photo_upload' || (task.type === 'external_link' && content.verify_method === 'photo')) && (
@@ -704,8 +722,8 @@ export function StudentStation() {
                               <input
                                 placeholder="Nhập mật mã vào đây..."
                                 className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-indigo-500/50"
-                                value={textAnswers[task.id] || ''}
-                                onChange={(e) => setTextAnswers(prev => ({...prev, [task.id]: e.target.value}))}
+                                value={(textAnswers[task.id] || [])[0] || ''}
+                                onChange={(e) => setTextAnswers(prev => ({...prev, [task.id]: [e.target.value]}))}
                               />
                             </div>
                           )}
