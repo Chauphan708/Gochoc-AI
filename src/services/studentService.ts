@@ -22,6 +22,20 @@ export async function getStudentsByTeacher(teacherId: string): Promise<Student[]
 }
 
 /** Tạo 1 HS */
+export async function getTeacherClasses(teacherId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('students')
+    .select('class_name')
+    .eq('teacher_id', teacherId)
+    .neq('class_name', null)
+
+  if (error) throw new Error(error.message)
+  
+  // Lọc ra danh sách lớp độc nhất (distinct)
+  const uniqueClasses = Array.from(new Set(data.map(d => d.class_name).filter(Boolean))) as string[]
+  return uniqueClasses.sort()
+}
+
 export async function createStudent(input: {
   displayName: string
   studentCode: string

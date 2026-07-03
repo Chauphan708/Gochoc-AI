@@ -27,6 +27,7 @@ import {
   PenLine,
   BarChart3,
 } from 'lucide-react'
+import { getTeacherClasses } from '@/services/studentService'
 import { useAuthStore } from '@/stores/authStore'
 import { createSession, createStationsBatch, createTasksBatch } from '@/services/sessionService'
 
@@ -83,8 +84,8 @@ export function CreateSession() {
   } = useForm<SessionForm>({
     resolver: zodResolver(sessionSchema),
     defaultValues: {
-      rotation_time_minutes: 15,
-      total_time_minutes: 60,
+      rotation_time_minutes: 10,
+      total_time_minutes: 40,
       max_stations: 4,
       device_mode: 'individual',
       grouping_mode: 'random',
@@ -97,14 +98,23 @@ export function CreateSession() {
 
   // Custom durations state
   const [isCustomDurations, setIsCustomDurations] = useState(false)
-  const [customDurations, setCustomDurations] = useState<number[]>([15, 15, 15, 15])
+  const [customDurations, setCustomDurations] = useState<number[]>([10, 10, 10, 10])
+  const [teacherClasses, setTeacherClasses] = useState<string[]>([])
+
+  useEffect(() => {
+    if (user?.id) {
+      getTeacherClasses(user.id).then(classes => {
+        setTeacherClasses(classes)
+      }).catch(console.error)
+    }
+  }, [user?.id])
 
   useEffect(() => {
     if (maxStations) {
       setCustomDurations(prev => {
         const next = [...prev]
         if (next.length < maxStations) {
-          while (next.length < maxStations) next.push(15)
+          while (next.length < maxStations) next.push(10)
         } else if (next.length > maxStations) {
           return next.slice(0, maxStations)
         }
@@ -305,7 +315,7 @@ export function CreateSession() {
                     <input
                       id="input-title"
                       className={`input ${errors.title ? 'input-error' : ''}`}
-                      placeholder="VD: Phản ứng hóa học — Lớp 8A"
+                      placeholder="VD: Ôn tập Toán — Lớp 5A"
                       {...register('title')}
                     />
                     {errors.title && (
@@ -320,20 +330,38 @@ export function CreateSession() {
                       <input
                         id="input-subject"
                         className="input"
-                        placeholder="Hóa học"
+                        placeholder="VD: Toán"
+                        list="subject-list"
                         {...register('subject')}
                       />
+                      <datalist id="subject-list">
+                        <option value="Tiếng Việt" />
+                        <option value="Toán" />
+                        <option value="Khoa học" />
+                        <option value="Lịch sử và Địa lí" />
+                        <option value="Công nghệ" />
+                        <option value="Đạo đức" />
+                        <option value="HĐTN" />
+                        <option value="Tiếng Anh" />
+                        <option value="Âm nhạc" />
+                        <option value="Mĩ thuật" />
+                        <option value="Trò chơi lớn" />
+                      </datalist>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-300 mb-1.5">
                         Lớp
                       </label>
-                      <input
+                      <select
                         id="input-grade"
                         className="input"
-                        placeholder="8A"
                         {...register('grade_level')}
-                      />
+                      >
+                        <option value="">-- Chọn lớp --</option>
+                        {teacherClasses.map(cls => (
+                          <option key={cls} value={cls}>{cls}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>
