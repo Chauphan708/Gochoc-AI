@@ -193,11 +193,9 @@ export function LobbyPage() {
     setIsStarting(true)
     try {
       await startSession(session.id)
-      // Tự động reload cục bộ
-      loadSession()
+      navigate(`/teacher/live/${session.id}`)
     } catch (e: any) {
       alert(e.message)
-    } finally {
       setIsStarting(false)
     }
   }
