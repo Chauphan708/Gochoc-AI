@@ -185,7 +185,7 @@ export function CreateSession() {
             stationId: stationDb.id,
             title: t.title,
             type: t.type,
-            content: {}, // Default empty content for now
+            content: t.content || {}, // Fix: Use actual content instead of empty object
             orderNum: tIdx + 1,
             xp_reward: t.xp_reward,
             scoringMode: t.scoring_mode,
@@ -260,6 +260,11 @@ export function CreateSession() {
     setStations(updated)
   }
 
+  const onError = () => {
+    alert('Vui lòng điền đầy đủ các thông tin bắt buộc (ví dụ: Tiêu đề phiên học ở Bước 1).')
+    setStep(1)
+  }
+
   return (
     <div className="min-h-dvh px-6 py-8">
       <div className="max-w-2xl mx-auto">
@@ -308,9 +313,9 @@ export function CreateSession() {
           ))}
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(onSubmit, onError)}>
           {/* ── STEP 1: THÔNG TIN CƠ BẢN ── */}
-          {step === 1 && (
+          <div className={step === 1 ? "space-y-6 animate-fade-in" : "hidden"}>
             <div className="space-y-6 animate-fade-in">
               <div className="glass-card-static p-6">
                 <h2 className="text-white font-semibold mb-4">📝 Thông tin phiên học</h2>
@@ -472,10 +477,10 @@ export function CreateSession() {
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
-          )}
+          </div>
 
           {/* ── STEP 2: GÓC & THIẾT BỊ ── */}
-          {step === 2 && (
+          <div className={step === 2 ? "space-y-6 animate-fade-in" : "hidden"}>
             <div className="space-y-6 animate-fade-in">
               {/* Device Mode — v5 */}
               <div className="glass-card-static p-6">
@@ -612,10 +617,10 @@ export function CreateSession() {
                 </button>
               </div>
             </div>
-          )}
+          </div>
 
           {/* ── STEP 3: NHIỆM VỤ & SCORING MODE (v5) ── */}
-          {step === 3 && (
+          <div className={step === 3 ? "space-y-6 animate-fade-in" : "hidden"}>
             <div className="space-y-6 animate-fade-in">
               <div className="glass-card-static p-6">
                 <h2 className="text-white font-semibold mb-4 flex items-center gap-2">
@@ -1042,10 +1047,10 @@ export function CreateSession() {
                 </button>
               </div>
             </div>
-          )}
+          </div>
 
           {/* ── STEP 4: NHÓM & XÁC NHẬN ── */}
-          {step === 4 && (
+          <div className={step === 4 ? "space-y-6 animate-fade-in" : "hidden"}>
             <div className="space-y-6 animate-fade-in">
               {/* Grouping */}
               <div className="glass-card-static p-6">
@@ -1138,7 +1143,7 @@ export function CreateSession() {
                 </button>
               </div>
             </div>
-          )}
+          </div>
         </form>
       </div>
     </div>
