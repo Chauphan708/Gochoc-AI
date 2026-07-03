@@ -704,29 +704,36 @@ export function TeacherLiveControl() {
 
       {/* Modal QR Code */}
       {showQr && session && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in overflow-y-auto">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-[1000px] w-full shadow-2xl relative my-8">
             <button
               onClick={() => setShowQr(false)}
               className="absolute top-4 right-4 p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
             >
-              <X className="w-5 h-5" />
+              <X className="w-8 h-8" />
             </button>
-            <h3 className="text-xl font-bold text-white mb-2 text-center">Quét mã để tham gia</h3>
-            <p className="text-sm text-slate-400 mb-6 text-center">Học sinh dùng Zalo hoặc Camera để quét mã này</p>
+            <h3 className="text-4xl font-bold text-white mb-4 text-center mt-4">Quét mã để tham gia</h3>
+            <p className="text-xl text-slate-400 mb-8 text-center">Học sinh dùng Zalo hoặc Camera để quét mã này</p>
             
-            <div className="bg-white p-4 rounded-xl flex items-center justify-center mb-6 w-fit mx-auto">
+            <div className="bg-white p-6 rounded-2xl flex items-center justify-center mb-8 w-fit mx-auto shadow-inner">
               <QRCode
                 value={`${window.location.origin}/student/join?code=${session.join_code}`}
-                size={200}
+                size={800}
                 style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                viewBox={`0 0 256 256`}
+                viewBox={`0 0 800 800`}
               />
             </div>
             
-            <div className="flex gap-2">
-               <button onClick={copyJoinLink} className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors">
-                 <Copy className="w-4 h-4" />
+            <div className="text-center mb-8">
+               <p className="text-slate-400 mb-3 text-lg">Hoặc truy cập bằng link:</p>
+               <div className="bg-black/50 p-4 rounded-xl border border-white/10 font-mono text-2xl md:text-3xl text-indigo-400 break-all">
+                  {`${window.location.origin}/student/join?code=${session.join_code}`}
+               </div>
+            </div>
+
+            <div className="flex justify-center">
+               <button onClick={copyJoinLink} className="btn btn-secondary w-full max-w-md text-xl py-4">
+                 <Copy className="w-6 h-6 mr-2" />
                  Copy Link
                </button>
             </div>
