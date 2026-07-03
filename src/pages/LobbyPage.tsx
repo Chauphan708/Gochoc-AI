@@ -506,27 +506,27 @@ export function LobbyPage() {
             <h3 className="text-4xl font-bold text-white mb-4 text-center mt-4">Quét mã để tham gia</h3>
             <p className="text-xl text-slate-400 mb-8 text-center">Học sinh dùng Zalo hoặc Camera để quét mã này</p>
             
-            <div className="bg-white p-6 rounded-2xl flex items-center justify-center mb-8 w-fit mx-auto shadow-inner">
-              <QRCode
-                value={`${window.location.origin}/student/join?code=${session.join_code}`}
-                size={640}
-                style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                viewBox={`0 0 640 640`}
-              />
-            </div>
-            
-            <div className="text-center mb-8">
-               <p className="text-slate-400 mb-3 text-lg">Hoặc truy cập bằng link:</p>
-               <div className="bg-black/50 p-4 rounded-xl border border-white/10 font-mono text-2xl md:text-3xl text-indigo-400 break-all">
-                  {`${window.location.origin}/student/join?code=${session.join_code}`}
-               </div>
-            </div>
+            <div className="flex flex-col md:flex-row items-center justify-center gap-8 w-full">
+              <div className="bg-white p-6 rounded-2xl flex items-center justify-center shadow-inner shrink-0 w-64 md:w-auto">
+                <QRCode
+                  value={`${window.location.origin}/student/join?code=${session.join_code}`}
+                  size={400}
+                  style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                  viewBox={`0 0 400 400`}
+                />
+              </div>
+              
+              <div className="flex flex-col flex-1 w-full max-w-sm text-center md:text-left">
+                 <p className="text-slate-400 mb-3 text-lg">Hoặc truy cập bằng link:</p>
+                 <div className="bg-black/50 p-4 rounded-xl border border-white/10 font-mono text-2xl text-indigo-400 break-all mb-6">
+                    {`${window.location.origin}/student/join?code=${session.join_code}`}
+                 </div>
 
-            <div className="flex justify-center">
-               <button onClick={copyJoinLink} className="btn btn-secondary w-full max-w-md text-xl py-4">
-                 <Copy className="w-6 h-6 mr-2" />
-                 Copy Link
-               </button>
+                 <button onClick={copyJoinLink} className="btn btn-secondary w-full text-xl py-4 flex items-center justify-center">
+                   <Copy className="w-6 h-6 mr-2" />
+                   Copy Link
+                 </button>
+              </div>
             </div>
           </div>
         </div>
